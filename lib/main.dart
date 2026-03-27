@@ -29,6 +29,16 @@ class BrushAndCoinApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF6750A4),
           ),
+          scaffoldBackgroundColor: const Color(0xFFF3F3F6),
+          navigationBarTheme: NavigationBarThemeData(
+            iconTheme: WidgetStateProperty.resolveWith((states) {
+              final isSelected = states.contains(WidgetState.selected);
+              return IconThemeData(
+                color: isSelected ? const Color(0xFFFF4A4A) : const Color(0xFF222222),
+                size: 22,
+              );
+            }),
+          ),
           useMaterial3: true,
         ),
         initialRoute: '/login',
@@ -66,6 +76,16 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: _pages[_currentIndex],
       bottomNavigationBar: NavigationBar(
+        backgroundColor: const Color(0xFFEDEDF1),
+        indicatorColor: const Color(0xFFFFD9D9),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final isSelected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: const Color(0xFF222222),
+          );
+        }),
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {

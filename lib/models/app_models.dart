@@ -15,7 +15,7 @@ class Artist {
     return Artist(
       name: (json['name'] as String?) ?? '',
       location: (json['location'] as String?) ?? '',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0,
+      rating: _readDouble(json['rating']),
     );
   }
 }
@@ -67,7 +67,7 @@ class Milestone {
   factory Milestone.fromJson(Map<String, dynamic> json) {
     return Milestone(
       title: (json['title'] as String?) ?? '',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      amount: _readDouble(json['amount']),
       isReleased: (json['isReleased'] as bool?) ?? false,
     );
   }
@@ -115,4 +115,17 @@ ProjectStatus _projectStatusFromString(String raw) {
     default:
       return ProjectStatus.inquiry;
   }
+}
+
+double _readDouble(dynamic value) {
+  if (value == null) {
+    return 0;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value) ?? 0;
+  }
+  return 0;
 }
