@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../services/api_client.dart';
-import '../widgets/auth/auth_styles.dart';
-import '../widgets/auth/google_button.dart';
-import '../widgets/auth/or_divider.dart';
+import '../../services/api_client.dart';
+import '../../widgets/auth/auth_styles.dart';
+import '../../widgets/auth/google_button.dart';
+import '../../widgets/auth/or_divider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -207,4 +207,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

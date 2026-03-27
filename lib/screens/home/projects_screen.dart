@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/app_models.dart';
-import '../services/api_client.dart';
+import '../../models/app_models.dart';
+import '../../services/api_client.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});

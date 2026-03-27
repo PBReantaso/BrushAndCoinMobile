@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'screens/artists_screen.dart';
-import 'screens/dashboard_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/messages_screen.dart';
-import 'screens/onboarding_role_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/projects_screen.dart';
-import 'screens/signup_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/onboarding_role_screen.dart';
+import 'screens/auth/signup_screen.dart';
+import 'screens/home/artists_screen.dart';
+import 'screens/home/dashboard_screen.dart';
+import 'screens/home/messages_screen.dart';
+import 'screens/home/projects_screen.dart';
+import 'screens/profile/profile_screen.dart';
 import 'state/app_profile.dart';
 import 'state/app_profile_scope.dart';
 

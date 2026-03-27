@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/app_models.dart';
-import '../services/api_client.dart';
+import '../../models/app_models.dart';
+import '../../services/api_client.dart';
 
 class ArtistsScreen extends StatefulWidget {
   const ArtistsScreen({super.key});

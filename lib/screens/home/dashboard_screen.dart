@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../models/app_models.dart';
-import '../services/api_client.dart';
-import '../widgets/project_card.dart';
-import '../widgets/quick_action_chip.dart';
+import '../../models/app_models.dart';
+import '../../services/api_client.dart';
+import '../../widgets/project_card.dart';
+import '../../widgets/quick_action_chip.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

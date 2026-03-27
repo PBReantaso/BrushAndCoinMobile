@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../state/app_profile.dart';
-import '../state/app_profile_scope.dart';
-import '../widgets/auth/auth_styles.dart';
+import '../../state/app_profile.dart';
+import '../../state/app_profile_scope.dart';
+import '../../widgets/auth/auth_styles.dart';
 
 class OnboardingRoleScreen extends StatefulWidget {
   const OnboardingRoleScreen({super.key});
@@ -274,7 +274,7 @@ class _RoleIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Placeholder illustration area (we’ll swap to real assets later).
+    // Placeholder illustration area (we'll swap to real assets later).
     return Container(
       height: 170,
       width: double.infinity,
@@ -338,4 +338,3 @@ class _GenderChip extends StatelessWidget {
     );
   }
 }
-

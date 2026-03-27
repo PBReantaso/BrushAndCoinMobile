@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../models/app_models.dart';
-import '../state/app_profile.dart';
-import '../state/app_profile_scope.dart';
+import '../../models/app_models.dart';
+import '../../state/app_profile.dart';
+import '../../state/app_profile_scope.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
