@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
 import '../widgets/auth/auth_styles.dart';
 import '../widgets/auth/google_button.dart';
 import '../widgets/auth/or_divider.dart';
@@ -12,6 +13,7 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  final _apiClient = ApiClient();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _retypeController = TextEditingController();
@@ -19,6 +21,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _agree = false;
   bool _obscurePassword = true;
   bool _obscureRetype = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -34,8 +37,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  void _mockSignUp() {
-    Navigator.pushReplacementNamed(context, '/onboarding');
+  Future<void> _signUp() async {
+    if (_passwordController.text != _retypeController.text) {
+      _showComingSoon('Passwords do not match.');
+      return;
+    }
+    if (!_agree) {
+      _showComingSoon('Please agree to the terms first.');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await _apiClient.signup(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.pushReplacementNamed(context, '/onboarding');
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showComingSoon(e.message);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showComingSoon('Unable to reach server. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   @override
@@ -158,8 +199,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 6),
               ElevatedButton(
                 style: primaryPillButtonStyle(),
-                onPressed: _mockSignUp,
-                child: const Text('Sign-Up'),
+                onPressed: _isSubmitting ? null : _signUp,
+                child: Text(_isSubmitting ? 'Creating account...' : 'Sign-Up'),
               ),
               const SizedBox(height: 18),
               const OrDivider(),

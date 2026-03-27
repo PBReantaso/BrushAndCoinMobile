@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
 import '../widgets/auth/auth_styles.dart';
 import '../widgets/auth/google_button.dart';
 import '../widgets/auth/or_divider.dart';
@@ -12,10 +13,12 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _apiClient = ApiClient();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -30,8 +33,37 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _mockLogin() {
-    Navigator.pushReplacementNamed(context, '/app');
+  Future<void> _login() async {
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await _apiClient.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.pushReplacementNamed(context, '/app');
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showComingSoon(e.message);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showComingSoon('Unable to reach server. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   @override
@@ -129,8 +161,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 6),
               ElevatedButton(
                 style: primaryPillButtonStyle(),
-                onPressed: _mockLogin,
-                child: const Text('Log- In'),
+                onPressed: _isSubmitting ? null : _login,
+                child: Text(_isSubmitting ? 'Signing in...' : 'Log- In'),
               ),
               const SizedBox(height: 18),
               const OrDivider(),
