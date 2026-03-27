@@ -1,6 +1,6 @@
 # BrushAndCoinMobile
 
-Simple Flutter foundation app for the Brush&Coin capstone project. It focuses on artists, portfolios, secure commission projects, escrow-style milestones, client messaging, and payment methods (GCash, PayMaya, PayPal, Stripe) as described in your abstract.
+Simple Flutter foundation app for the Brush&Coin capstone project. It focuses on artists, portfolios, secure commission projects, escrow-style milestones, client messaging, and payment methods (GCash, PayMaya, PayPal, Stripe).
 
 ## Running the app with separate API backend
 
