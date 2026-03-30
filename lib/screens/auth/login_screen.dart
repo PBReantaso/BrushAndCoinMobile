@@ -21,6 +21,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSubmitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    _autoLoginIfRemembered();
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -33,7 +39,15 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _login() async {
+  Future<void> _autoLoginIfRemembered() async {
+    final success = await _apiClient.tryAutoLogin();
+    if (!mounted || !success) {
+      return;
+    }
+    Navigator.pushReplacementNamed(context, '/app');
+  }
+
+  Future<void> _login({bool isAutoLogin = false}) async {
     setState(() {
       _isSubmitting = true;
     });
@@ -42,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await _apiClient.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        rememberMe: _rememberMe,
       );
       if (!mounted) {
         return;
@@ -51,12 +66,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) {
         return;
       }
-      _showComingSoon(e.message);
+      if (!isAutoLogin) {
+        _showComingSoon(e.message);
+      }
     } catch (_) {
       if (!mounted) {
         return;
       }
-      _showComingSoon('Unable to reach server. Please try again.');
+      if (!isAutoLogin) {
+        _showComingSoon('Unable to reach server. Please try again.');
+      }
     } finally {
       if (mounted) {
         setState(() {

@@ -55,6 +55,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       await _apiClient.signup(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        rememberMe: true,
       );
       if (!mounted) {
         return;

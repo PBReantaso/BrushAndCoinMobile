@@ -45,30 +45,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFEDEDF1),
         elevation: 0,
-        titleSpacing: 12,
-        title: const Text(
-          'B&C',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.4,
-            color: Color(0xFF222222),
-          ),
+        titleSpacing: 8,
+        title: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'B&C',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.4,
+                  color: Color(0xFF222222),
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.add_circle, color: Color(0xFFFF4A4A)),
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.search, color: Color(0xFF303030)),
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.notifications, color: Color(0xFF101010)),
+            ),
+          ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.add_circle, color: Color(0xFFFF4A4A)),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.search, color: Color(0xFF303030)),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications, color: Color(0xFF101010)),
-          ),
-          const SizedBox(width: 4),
-        ],
       ),
       body: FutureBuilder<_HomeData>(
         future: _homeFuture,
