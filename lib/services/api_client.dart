@@ -194,6 +194,11 @@ class ApiClient {
     _throwIfError(response);
   }
 
+  Future<List<Map<String, dynamic>>> fetchPostComments(int postId) async {
+    final json = await _getJsonProtected('/posts/$postId/comments');
+    return _readList(json['comments']);
+  }
+
   Future<void> updateProfile({required String username}) async {
     final response = await _authorizedPost(
       '/auth/profile',

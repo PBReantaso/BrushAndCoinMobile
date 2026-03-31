@@ -141,44 +141,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _commentOnPost(_FeedPost post) async {
-    final controller = TextEditingController();
-    final comment = await showDialog<String>(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add comment'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Write your comment'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Post'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return _CommentsSheet(
+          postId: post.id,
+          apiClient: _apiClient,
+          onCommentAdded: () {
+            _updatePost(
+              post.id,
+              (current) => current.copyWith(commentCount: current.commentCount + 1),
+            );
+          },
+        );
+      },
     );
-    if (comment == null || comment.isEmpty) return;
-    _updatePost(
-      post.id,
-      (current) => current.copyWith(commentCount: current.commentCount + 1),
-    );
-    try {
-      await _apiClient.commentOnPost(postId: post.id, comment: comment);
-    } on ApiException catch (e) {
-      _updatePost(
-        post.id,
-        (current) =>
-            current.copyWith(commentCount: (current.commentCount - 1).clamp(0, 1 << 30)),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    }
   }
 
   void _updatePost(int postId, _FeedPost Function(_FeedPost current) mapper) {
@@ -188,6 +167,245 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .map((p) => p.id == postId ? mapper(p) : p)
           .toList(growable: false);
     });
+  }
+}
+
+class _CommentsSheet extends StatefulWidget {
+  final int postId;
+  final ApiClient apiClient;
+  final VoidCallback onCommentAdded;
+
+  const _CommentsSheet({
+    required this.postId,
+    required this.apiClient,
+    required this.onCommentAdded,
+  });
+
+  @override
+  State<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends State<_CommentsSheet> {
+  final TextEditingController _commentController = TextEditingController();
+  bool _loading = true;
+  bool _posting = false;
+  String? _error;
+  List<_PostComment> _comments = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadComments();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadComments() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await widget.apiClient.fetchPostComments(widget.postId);
+      if (!mounted) return;
+      setState(() {
+        _comments = data.map(_PostComment.fromJson).toList();
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty || _posting) return;
+    setState(() => _posting = true);
+    try {
+      await widget.apiClient.commentOnPost(postId: widget.postId, comment: text);
+      _commentController.clear();
+      widget.onCommentAdded();
+      await _loadComments();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _posting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kb = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.72,
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8F8FB),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFC8C8CF),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Comments',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(child: Text(_error!))
+                      : _comments.isEmpty
+                          ? const Center(child: Text('No comments yet. Start the conversation.'))
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+                              itemCount: _comments.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final c = _comments[index];
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: Color(0xFFD8D8DE),
+                                      child: Icon(Icons.person, size: 16, color: Color(0xFF707077)),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                c.authorName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF1A1A1E),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                c.timeAgo,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Color(0xFF7A7A82),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            c.comment,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF2F2F36),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.fromLTRB(12, 10, 12, kb > 0 ? kb + 8 : 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _commentController,
+                      minLines: 1,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Join the conversation...',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: const BorderSide(color: Color(0xFFE0E0E8)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: const BorderSide(color: Color(0xFFE0E0E8)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _posting ? null : _submitComment,
+                    icon: _posting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_outlined),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PostComment {
+  final String authorName;
+  final String comment;
+  final DateTime? createdAt;
+
+  const _PostComment({
+    required this.authorName,
+    required this.comment,
+    required this.createdAt,
+  });
+
+  factory _PostComment.fromJson(Map<String, dynamic> json) {
+    return _PostComment(
+      authorName: (json['authorName'] as String?) ?? 'User',
+      comment: (json['comment'] as String?) ?? '',
+      createdAt: DateTime.tryParse((json['createdAt'] as String?) ?? ''),
+    );
+  }
+
+  String get timeAgo {
+    if (createdAt == null) return '';
+    final now = DateTime.now();
+    final diff = now.difference(createdAt!);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m';
+    if (diff.inDays < 1) return '${diff.inHours}h';
+    return '${diff.inDays}d';
   }
 }
 
