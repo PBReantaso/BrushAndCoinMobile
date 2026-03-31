@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
+import '../../services/api_client.dart';
 import '../../state/app_profile_scope.dart';
 import '../../widgets/common/bc_app_bar.dart';
 
@@ -12,6 +15,19 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _showGallery = true;
+  final _apiClient = ApiClient();
+  late Future<List<_ProfilePost>> _postsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _postsFuture = _loadMyPosts();
+  }
+
+  Future<List<_ProfilePost>> _loadMyPosts() async {
+    final raw = await _apiClient.fetchMyPosts();
+    return raw.map(_ProfilePost.fromJson).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +41,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final headerName = (username.isNotEmpty ? username : fullName).isEmpty
         ? 'Name'
         : (username.isNotEmpty ? username : fullName);
+
+    final genderRaw = p.gender.name; // enum -> 'male' | 'female' | ...
+    final genderLabel = switch (genderRaw) {
+      'male' => 'Male',
+      'female' => 'Female',
+      'other' => 'Other',
+      'preferNotToSay' => 'Prefer not to say',
+      _ => '',
+    };
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F4),
@@ -53,6 +78,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         headerName,
                         style: const TextStyle(fontSize: 14),
                       ),
+                      if (genderLabel.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          genderLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black.withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -182,47 +218,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 4,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 2,
-              crossAxisSpacing: 2,
-              childAspectRatio: 1,
-            ),
-            itemBuilder: (context, index) {
-              final colors = _showGallery
-                  ? const [
-                      [Color(0xFF2A4B79), Color(0xFF8CA6DB)],
-                      [Color(0xFF0E7490), Color(0xFF5BB3F2)],
-                      [Color(0xFFE5A96D), Color(0xFFCC7B4A)],
-                      [Color(0xFFE88999), Color(0xFFF4B5C0)],
-                    ]
-                  : const [
+          _showGallery
+              ? FutureBuilder<List<_ProfilePost>>(
+                  future: _postsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Text('Failed to load gallery.'),
+                        ),
+                      );
+                    }
+                    final posts = snapshot.data ?? const <_ProfilePost>[];
+                    if (posts.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: Text('No posts yet. Create your first post.')),
+                      );
+                    }
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: posts.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 2,
+                        crossAxisSpacing: 2,
+                        childAspectRatio: 1,
+                      ),
+                      itemBuilder: (context, index) {
+                        final post = posts[index];
+                        return _GalleryTile(post: post);
+                      },
+                    );
+                  },
+                )
+              : GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 4,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 2,
+                    crossAxisSpacing: 2,
+                    childAspectRatio: 1,
+                  ),
+                  itemBuilder: (context, index) {
+                    const colors = [
                       [Color(0xFF6F4E37), Color(0xFFD4A373)],
                       [Color(0xFF2F3E46), Color(0xFF84A98C)],
                       [Color(0xFF4A4E69), Color(0xFF9A8C98)],
                       [Color(0xFF5F0F40), Color(0xFF9A031E)],
                     ];
-              final palette = colors[index % colors.length];
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: palette,
-                  ),
+                    final palette = colors[index % colors.length];
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: palette,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.image, color: Colors.white70),
+                      ),
+                    );
+                  },
                 ),
-                child: const Center(
-                  child: Icon(Icons.image, color: Colors.white70),
-                ),
-              );
-            },
-          ),
         ],
       ),
+    );
+  }
+}
+
+class _ProfilePost {
+  final String? imageUrl;
+
+  const _ProfilePost({required this.imageUrl});
+
+  factory _ProfilePost.fromJson(Map<String, dynamic> json) {
+    return _ProfilePost(imageUrl: json['imageUrl'] as String?);
+  }
+}
+
+class _GalleryTile extends StatelessWidget {
+  final _ProfilePost post;
+
+  const _GalleryTile({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final path = post.imageUrl?.trim() ?? '';
+    if (path.isNotEmpty) {
+      final imageProvider = path.startsWith('http://') || path.startsWith('https://')
+          ? NetworkImage(path) as ImageProvider
+          : FileImage(File(path));
+      return Image(image: imageProvider, fit: BoxFit.cover, errorBuilder: (_, __, ___) {
+        return _fallback();
+      });
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2A4B79), Color(0xFF8CA6DB)],
+        ),
+      ),
+      child: const Center(child: Icon(Icons.image, color: Colors.white70)),
     );
   }
 }

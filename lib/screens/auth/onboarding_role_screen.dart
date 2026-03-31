@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/api_client.dart';
 import '../../state/app_profile.dart';
 import '../../state/app_profile_scope.dart';
 import '../../widgets/auth/auth_styles.dart';
@@ -12,6 +13,7 @@ class OnboardingRoleScreen extends StatefulWidget {
 }
 
 class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
+  final _apiClient = ApiClient();
   final _usernameController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -55,9 +57,18 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
     AppProfileScope.of(context).setRole(newRole);
   }
 
-  void _continue() {
+  Future<void> _continue() async {
+    final username = _usernameController.text.trim();
+    if (username.isNotEmpty) {
+      try {
+        await _apiClient.updateProfile(username: username);
+      } catch (_) {
+        // Keep onboarding flow resilient even if profile sync fails.
+      }
+    }
+    if (!mounted) return;
     AppProfileScope.of(context).updateOnboardingInfo(
-      username: _usernameController.text.trim(),
+      username: username,
       firstName: _firstNameController.text.trim(),
       lastName: _lastNameController.text.trim(),
       countryCode: _countryCodeController.text.trim(),
@@ -65,6 +76,7 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
       birthday: _birthday,
       gender: _gender,
     );
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/app');
   }
 

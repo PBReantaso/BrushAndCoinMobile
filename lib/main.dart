@@ -6,6 +6,8 @@ import 'screens/auth/signup_screen.dart';
 import 'screens/home/calendar_map_screen.dart';
 import 'screens/home/dashboard_screen.dart';
 import 'screens/home/messages_screen.dart';
+import 'screens/home/create_event_screen.dart';
+import 'screens/home/create_post_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'state/app_profile.dart';
@@ -63,6 +65,8 @@ class BrushAndCoinApp extends StatelessWidget {
           '/signup': (_) => const SignUpScreen(),
           '/onboarding': (_) => const OnboardingRoleScreen(),
           '/settings': (_) => const SettingsScreen(),
+          '/create_event': (_) => const CreateEventScreen(),
+          '/create_post': (_) => const CreatePostScreen(),
           '/app': (_) => const MainShell(),
         },
       ),
@@ -79,36 +83,57 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  int _calendarRefreshTick = 0;
+  int _homeRefreshTick = 0;
 
-  final _pages = const [
-    DashboardScreen(),
-    CalendarMapScreen(),
-    MessagesScreen(),
-    ProfileScreen(),
-  ];
+  List<Widget> get _pages => [
+        DashboardScreen(key: ValueKey(_homeRefreshTick)),
+        CalendarMapScreen(key: ValueKey(_calendarRefreshTick)),
+        const MessagesScreen(),
+        const ProfileScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
     final isHome = _currentIndex == 0;
+    final isCalendar = _currentIndex == 1;
     return Scaffold(
       body: Stack(
         children: [
           _pages[_currentIndex],
-          if (isHome)
+          if (isHome || isCalendar)
             Positioned(
               right: 18,
               // Slightly above the bottom nav bar.
               bottom: 25,
               child: SizedBox(
-                width: 58,
-                height: 58,
+                width: 50,
+                height: 50,
                 child: FloatingActionButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    if (_currentIndex == 0) {
+                      final created = await Navigator.of(context).pushNamed('/create_post');
+                      if (created == true && mounted) {
+                        setState(() {
+                          _homeRefreshTick++;
+                        });
+                      }
+                      return;
+                    }
+                    if (_currentIndex == 1) {
+                      final created = await Navigator.of(context).pushNamed('/create_event');
+                      if (created == true && mounted) {
+                        setState(() {
+                          _calendarRefreshTick++;
+                        });
+                      }
+                    }
+                  },
                   backgroundColor: const Color(0xFFFF4A4A),
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: const CircleBorder(),
-                  child: const Icon(Icons.add),
+                  child: const Icon(Icons.add, size: 24),
                 ),
               ),
             ),

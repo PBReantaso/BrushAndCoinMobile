@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Location permissions for Get current location in Add Event -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Camera permission for taking event photos -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <application
         android:label="brush_and_coin_mobile"
         android:name="${applicationName}"
@@ -44,3 +51,4 @@
         </intent>
     </queries>
 </manifest>
+

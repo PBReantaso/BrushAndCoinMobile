@@ -1,17 +1,35 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 class FeedPostCard extends StatelessWidget {
+  final int postId;
   final String author;
   final String subtitle;
   final String title;
+  final String description;
   final List<String> tags;
+  final String? imageUrl;
+  final int likeCount;
+  final int commentCount;
+  final bool likedByMe;
+  final VoidCallback onLikeTap;
+  final VoidCallback onCommentTap;
 
   const FeedPostCard({
     super.key,
+    required this.postId,
     required this.author,
     required this.subtitle,
     required this.title,
+    required this.description,
     required this.tags,
+    required this.imageUrl,
+    required this.likeCount,
+    required this.commentCount,
+    required this.likedByMe,
+    required this.onLikeTap,
+    required this.onCommentTap,
   });
 
   @override
@@ -52,37 +70,31 @@ class FeedPostCard extends StatelessWidget {
           ),
           AspectRatio(
             aspectRatio: 1.05,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFD8CAD9),
-                    Color(0xFFC7C7D9),
-                    Color(0xFFE2E2EA),
-                  ],
-                ),
-              ),
-              child: const Center(
-                child: Icon(Icons.image_outlined, size: 38, color: Colors.black45),
-              ),
-            ),
+            child: _postImage(),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
             child: Row(
-              children: const [
-                Icon(Icons.thumb_up, color: Color(0xFFFF4A4A), size: 20),
-                SizedBox(width: 4),
-                Text('200', style: TextStyle(fontSize: 12)),
-                SizedBox(width: 14),
-                Icon(Icons.comment, color: Color(0xFFFF4A4A), size: 18),
-                SizedBox(width: 4),
-                Text('23', style: TextStyle(fontSize: 12)),
-                Spacer(),
-                Icon(Icons.share, color: Color(0xFFFF4A4A), size: 18),
+              children: [
+                InkWell(
+                  onTap: onLikeTap,
+                  child: Icon(
+                    likedByMe ? Icons.thumb_up : Icons.thumb_up_outlined,
+                    color: const Color(0xFFFF4A4A),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text('$likeCount', style: const TextStyle(fontSize: 12)),
+                const SizedBox(width: 14),
+                InkWell(
+                  onTap: onCommentTap,
+                  child: const Icon(Icons.comment, color: Color(0xFFFF4A4A), size: 18),
+                ),
+                const SizedBox(width: 4),
+                Text('$commentCount', style: const TextStyle(fontSize: 12)),
+                const Spacer(),
+                const Icon(Icons.share, color: Color(0xFFFF4A4A), size: 18),
               ],
             ),
           ),
@@ -97,6 +109,19 @@ class FeedPostCard extends StatelessWidget {
               ),
             ),
           ),
+          if (description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 4, 10, 0),
+              child: Text(
+                description,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF4A4A4A),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 4, 10, 0),
             child: Text(
@@ -144,6 +169,52 @@ class FeedPostCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _postImage() {
+    final url = imageUrl?.trim() ?? '';
+    if (url.isEmpty) {
+      return _placeholder();
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder()),
+        ),
+      );
+    }
+
+    final file = File(url);
+    if (!file.existsSync()) return _placeholder();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Image.file(file, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder()),
+      ),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFD8CAD9),
+            Color(0xFFC7C7D9),
+            Color(0xFFE2E2EA),
+          ],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.image_outlined, size: 38, color: Colors.black45),
       ),
     );
   }
