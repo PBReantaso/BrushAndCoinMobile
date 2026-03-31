@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_models.dart';
 import '../../services/api_client.dart';
+import '../../widgets/common/bc_app_bar.dart';
 import '../../widgets/home/feed_post_card.dart';
-import '../../widgets/home/story_bubble.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -13,10 +13,9 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _HomeData {
-  final List<Artist> artists;
   final List<Project> projects;
 
-  _HomeData({required this.artists, required this.projects});
+  _HomeData({required this.projects});
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
@@ -31,48 +30,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<_HomeData> _loadHome() async {
     final results = await Future.wait([
-      _apiClient.fetchArtists(),
       _apiClient.fetchDashboardProjects(),
     ]);
-    final artists = (results[0]).map(Artist.fromJson).toList();
-    final projects = (results[1]).map(Project.fromJson).toList();
-    return _HomeData(artists: artists, projects: projects);
+    final projects = (results[0]).map(Project.fromJson).toList();
+    return _HomeData(projects: projects);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFEDEDF1),
-        elevation: 0,
-        titleSpacing: 8,
-        title: Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'B&C',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.4,
-                  color: Color(0xFF222222),
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.add_circle, color: Color(0xFFFF4A4A)),
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.search, color: Color(0xFF303030)),
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.notifications, color: Color(0xFF101010)),
-            ),
-          ],
-        ),
-      ),
+      appBar: const BcAppBar(),
       body: FutureBuilder<_HomeData>(
         future: _homeFuture,
         builder: (context, snapshot) {
@@ -111,44 +78,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             );
           }
 
-          final data = snapshot.data ?? _HomeData(artists: const [], projects: const []);
-          final stories = data.artists.take(12).toList();
+          final data = snapshot.data ?? _HomeData(projects: const []);
           final posts = data.projects;
 
           return CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 94,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: stories.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return const StoryBubble(
-                          label: 'You',
-                          initials: 'You',
-                        );
-                      }
-                      final a = stories[index - 1];
-                      final initials = a.name
-                          .trim()
-                          .split(RegExp(r'\\s+'))
-                          .where((p) => p.isNotEmpty)
-                          .take(2)
-                          .map((p) => p.characters.first.toUpperCase())
-                          .join();
-                      return StoryBubble(
-                        label: a.name,
-                        initials: initials.isEmpty ? 'A' : initials,
-                        onTap: () {},
-                      );
-                    },
-                  ),
-                ),
-              ),
               const SliverToBoxAdapter(
                 child: Divider(height: 1, color: Color(0xFFD8D8DE)),
               ),

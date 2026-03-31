@@ -3,13 +3,27 @@ import 'package:flutter/material.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_role_screen.dart';
 import 'screens/auth/signup_screen.dart';
-import 'screens/home/artists_screen.dart';
+import 'screens/home/calendar_map_screen.dart';
 import 'screens/home/dashboard_screen.dart';
 import 'screens/home/messages_screen.dart';
-import 'screens/home/projects_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/settings/settings_screen.dart';
 import 'state/app_profile.dart';
 import 'state/app_profile_scope.dart';
+
+class NoStretchScrollBehavior extends MaterialScrollBehavior {
+  const NoStretchScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Remove the stretch/glow effect on all scrollables.
+    return child;
+  }
+}
 
 void main() {
   runApp(const BrushAndCoinApp());
@@ -25,12 +39,14 @@ class BrushAndCoinApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Brush&Coin',
         debugShowCheckedModeBanner: false,
+        scrollBehavior: const NoStretchScrollBehavior(),
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF6750A4),
           ),
           scaffoldBackgroundColor: const Color(0xFFF3F3F6),
           navigationBarTheme: NavigationBarThemeData(
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
             iconTheme: WidgetStateProperty.resolveWith((states) {
               final isSelected = states.contains(WidgetState.selected);
               return IconThemeData(
@@ -46,6 +62,7 @@ class BrushAndCoinApp extends StatelessWidget {
           '/login': (_) => const LoginScreen(),
           '/signup': (_) => const SignUpScreen(),
           '/onboarding': (_) => const OnboardingRoleScreen(),
+          '/settings': (_) => const SettingsScreen(),
           '/app': (_) => const MainShell(),
         },
       ),
@@ -65,19 +82,42 @@ class _MainShellState extends State<MainShell> {
 
   final _pages = const [
     DashboardScreen(),
-    ArtistsScreen(),
-    ProjectsScreen(),
+    CalendarMapScreen(),
     MessagesScreen(),
     ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final isHome = _currentIndex == 0;
     return Scaffold(
-      body: _pages[_currentIndex],
+      body: Stack(
+        children: [
+          _pages[_currentIndex],
+          if (isHome)
+            Positioned(
+              right: 18,
+              // Slightly above the bottom nav bar.
+              bottom: 25,
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: FloatingActionButton(
+                  onPressed: () {},
+                  backgroundColor: const Color(0xFFFF4A4A),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: const CircleBorder(),
+                  child: const Icon(Icons.add),
+                ),
+              ),
+            ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFFEDEDF1),
-        indicatorColor: const Color(0xFFFFD9D9),
+        indicatorColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return TextStyle(
@@ -99,14 +139,9 @@ class _MainShellState extends State<MainShell> {
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.palette_outlined),
-            selectedIcon: Icon(Icons.palette),
-            label: 'Artists',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work),
-            label: 'Projects',
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Calendar & Map',
           ),
           NavigationDestination(
             icon: Icon(Icons.chat_bubble_outline),
