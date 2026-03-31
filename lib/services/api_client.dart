@@ -66,6 +66,15 @@ class ApiClient {
     await _tokenStorage.clear();
   }
 
+  Future<void> deleteAccount({required String password}) async {
+    final response = await _authorizedPost(
+      '/auth/delete',
+      body: {'password': password},
+    );
+    _throwIfError(response);
+    await logout();
+  }
+
   Future<bool> tryAutoLogin() async {
     final rememberMe = await _tokenStorage.readRememberMe();
     if (!rememberMe) {
@@ -132,6 +141,35 @@ class ApiClient {
       response = await _httpClient.get(
         _uri(path),
         headers: {'Authorization': 'Bearer $refreshed'},
+      );
+    }
+    return response;
+  }
+
+  Future<http.Response> _authorizedPost(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final token = await _getAccessTokenOrThrow();
+    var response = await _httpClient.post(
+      _uri(path),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 401) {
+      await _refreshAccessToken();
+      final refreshed = await _getAccessTokenOrThrow();
+      response = await _httpClient.post(
+        _uri(path),
+        headers: {
+          'Authorization': 'Bearer $refreshed',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
       );
     }
     return response;

@@ -17,11 +17,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final profileState = AppProfileScope.of(context);
     final p = profileState.profile;
-    final displayName = [
+    final username = p.username.trim();
+    final fullName = [
       p.firstName.trim(),
       p.lastName.trim(),
     ].where((s) => s.isNotEmpty).join(' ');
-    final headerName = displayName.isEmpty ? 'Name' : displayName;
+    final headerName = (username.isNotEmpty ? username : fullName).isEmpty
+        ? 'Name'
+        : (username.isNotEmpty ? username : fullName);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F4),
