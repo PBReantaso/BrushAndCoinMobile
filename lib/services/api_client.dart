@@ -5,8 +5,9 @@ import 'token_storage.dart';
 
 class ApiException implements Exception {
   final String message;
+  final int? statusCode;
 
-  ApiException(this.message);
+  ApiException(this.message, [this.statusCode]);
 
   @override
   String toString() => message;
@@ -24,6 +25,7 @@ class ApiClient {
   static String? _accessToken;
   static String? _refreshToken;
   static int? _currentUserId;
+  static String? _currentUsername;
 
   // For Android emulator use 10.0.2.2. For iOS simulator use localhost.
   static const String _baseUrl = String.fromEnvironment(
@@ -65,6 +67,7 @@ class ApiClient {
     _accessToken = null;
     _refreshToken = null;
     _currentUserId = null;
+    _currentUsername = null;
     await _tokenStorage.clear();
   }
 
@@ -199,6 +202,31 @@ class ApiClient {
     return _readList(json['comments']);
   }
 
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    final q = Uri.encodeQueryComponent(query.trim());
+    final json = await _getJsonProtected('/users/search?q=$q');
+    return _readList(json['users']);
+  }
+
+  Future<Map<String, dynamic>> fetchPublicUser(int userId) async {
+    return _getJsonProtected('/users/$userId');
+  }
+
+  Future<Map<String, dynamic>> followUser(int userId) async {
+    final response = await _authorizedPost('/users/$userId/follow', body: const {});
+    return _throwIfErrorAndReadJson(response);
+  }
+
+  Future<Map<String, dynamic>> unfollowUser(int userId) async {
+    final response = await _authorizedDelete('/users/$userId/follow');
+    return _throwIfErrorAndReadJson(response);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUserPosts(int userId) async {
+    final json = await _getJsonProtected('/users/$userId/posts');
+    return _readList(json['posts']);
+  }
+
   Future<void> updateProfile({required String username}) async {
     final response = await _authorizedPost(
       '/auth/profile',
@@ -294,10 +322,24 @@ class ApiClient {
 
   Future<int?> getCurrentUserId() async {
     if (_currentUserId != null) return _currentUserId;
-    final response = await _authorizedGet('/auth/me');
-    final json = _throwIfErrorAndReadJson(response);
-    _setCurrentUserIdFromMe(json);
+    await fetchMe();
     return _currentUserId;
+  }
+
+  /// Current user from `/auth/me` (updates cached user id and username).
+  Future<Map<String, dynamic>> fetchMe() async {
+    final json = await _getJsonProtected('/auth/me');
+    _setCurrentUserIdFromMe(json);
+    return json;
+  }
+
+  /// Username from last [fetchMe] / [getCurrentUserId] / session, or fetches `/auth/me`.
+  Future<String?> getCurrentUsername() async {
+    if (_currentUsername != null && _currentUsername!.isNotEmpty) {
+      return _currentUsername;
+    }
+    await fetchMe();
+    return _currentUsername;
   }
 
   Future<Map<String, dynamic>> _getJsonProtected(String path) async {
@@ -458,6 +500,10 @@ class ApiClient {
       } else if (id is String) {
         _currentUserId = int.tryParse(id);
       }
+      final u = user['username'];
+      if (u is String && u.trim().isNotEmpty) {
+        _currentUsername = u.trim();
+      }
     }
     // Always persist current session tokens so new ApiClient instances
     // (different screens) can still access protected endpoints.
@@ -495,9 +541,11 @@ class ApiClient {
       final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
       throw ApiException(
         (jsonBody['message'] as String?) ?? 'Request failed (${response.statusCode})',
+        response.statusCode,
       );
-    } catch (_) {
-      throw ApiException('Request failed (${response.statusCode})');
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Request failed (${response.statusCode})', response.statusCode);
     }
   }
 
@@ -509,6 +557,10 @@ class ApiClient {
       _currentUserId = id;
     } else if (id is String) {
       _currentUserId = int.tryParse(id);
+    }
+    final u = user['username'];
+    if (u is String && u.trim().isNotEmpty) {
+      _currentUsername = u.trim();
     }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
 import '../../widgets/common/bc_app_bar.dart';
 import '../../widgets/home/feed_post_card.dart';
@@ -91,6 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   final p = _posts[index];
                   return FeedPostCard(
                     postId: p.id,
+                    authorUserId: p.userId,
                     author: p.authorName.isEmpty ? 'Brush&Coin' : p.authorName,
                     subtitle: p.createdAtText,
                     title: p.title.isEmpty ? 'Untitled Post' : p.title,
@@ -284,50 +286,61 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                               separatorBuilder: (_, __) => const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final c = _comments[index];
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const CircleAvatar(
-                                      radius: 16,
-                                      backgroundColor: Color(0xFFD8D8DE),
-                                      child: Icon(Icons.person, size: 16, color: Color(0xFF707077)),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                c.authorName,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF1A1A1E),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                c.timeAgo,
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Color(0xFF7A7A82),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            c.comment,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Color(0xFF2F2F36),
-                                            ),
-                                          ),
-                                        ],
+                                return InkWell(
+                                  onTap: c.userId > 0
+                                      ? () {
+                                          pushUserProfile(
+                                            context,
+                                            userId: c.userId,
+                                            username: c.authorName,
+                                          );
+                                        }
+                                      : null,
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const CircleAvatar(
+                                        radius: 16,
+                                        backgroundColor: Color(0xFFD8D8DE),
+                                        child: Icon(Icons.person, size: 16, color: Color(0xFF707077)),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  c.authorName,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Color(0xFF1A1A1E),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  c.timeAgo,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Color(0xFF7A7A82),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              c.comment,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF2F2F36),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 );
                               },
                             ),
@@ -380,11 +393,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 }
 
 class _PostComment {
+  final int userId;
   final String authorName;
   final String comment;
   final DateTime? createdAt;
 
   const _PostComment({
+    required this.userId,
     required this.authorName,
     required this.comment,
     required this.createdAt,
@@ -392,6 +407,7 @@ class _PostComment {
 
   factory _PostComment.fromJson(Map<String, dynamic> json) {
     return _PostComment(
+      userId: _readInt(json['userId']),
       authorName: (json['authorName'] as String?) ?? 'User',
       comment: (json['comment'] as String?) ?? '',
       createdAt: DateTime.tryParse((json['createdAt'] as String?) ?? ''),
@@ -411,6 +427,7 @@ class _PostComment {
 
 class _FeedPost {
   final int id;
+  final int userId;
   final String authorName;
   final String title;
   final String description;
@@ -423,6 +440,7 @@ class _FeedPost {
 
   const _FeedPost({
     required this.id,
+    required this.userId,
     required this.authorName,
     required this.title,
     required this.description,
@@ -439,6 +457,7 @@ class _FeedPost {
     final tags = rawTags is List ? rawTags.map((e) => '$e').toList() : const <String>[];
     return _FeedPost(
       id: _readInt(json['id']),
+      userId: _readInt(json['userId']),
       authorName: (json['authorName'] as String?) ?? '',
       title: (json['title'] as String?) ?? '',
       description: (json['description'] as String?) ?? '',
@@ -464,6 +483,7 @@ class _FeedPost {
   }) {
     return _FeedPost(
       id: id,
+      userId: userId,
       authorName: authorName ?? this.authorName,
       title: title ?? this.title,
       description: description ?? this.description,

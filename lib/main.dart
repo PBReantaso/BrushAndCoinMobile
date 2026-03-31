@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'navigation/app_route_observer.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_role_screen.dart';
 import 'screens/auth/signup_screen.dart';
@@ -59,6 +60,7 @@ class BrushAndCoinApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
+        navigatorObservers: [appRouteObserver],
         initialRoute: '/login',
         routes: {
           '/login': (_) => const LoginScreen(),

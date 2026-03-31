@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
 import '../../widgets/common/bc_app_bar.dart';
 
@@ -664,6 +665,24 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      if (e.createdBy != null && e.createdBy! > 0) ...[
+                        const SizedBox(height: 10),
+                        InkWell(
+                          onTap: () => pushUserProfile(
+                            context,
+                            userId: e.createdBy!,
+                            username: 'User',
+                          ),
+                          child: const Text(
+                            'View organizer profile',
+                            style: TextStyle(
+                              color: Color(0xFFFF4A4A),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

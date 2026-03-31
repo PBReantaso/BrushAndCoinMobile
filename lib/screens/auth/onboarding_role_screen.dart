@@ -62,8 +62,17 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
     if (username.isNotEmpty) {
       try {
         await _apiClient.updateProfile(username: username);
+      } on ApiException catch (e) {
+        if (e.statusCode == 409) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message)),
+          );
+          return;
+        }
+        // Other errors: continue onboarding with local profile only.
       } catch (_) {
-        // Keep onboarding flow resilient even if profile sync fails.
+        // Network / unexpected: continue onboarding.
       }
     }
     if (!mounted) return;

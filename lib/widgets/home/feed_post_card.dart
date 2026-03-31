@@ -2,8 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../navigation/user_profile_navigation.dart';
+
 class FeedPostCard extends StatelessWidget {
   final int postId;
+  final int authorUserId;
   final String author;
   final String subtitle;
   final String title;
@@ -19,6 +22,7 @@ class FeedPostCard extends StatelessWidget {
   const FeedPostCard({
     super.key,
     required this.postId,
+    required this.authorUserId,
     required this.author,
     required this.subtitle,
     required this.title,
@@ -48,16 +52,19 @@ class FeedPostCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(10, 10, 6, 8),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFFF4A4A), width: 1.2),
-                  ),
-                  child: const CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Color(0xFFD2D2D7),
-                    child: Icon(Icons.person, color: Color(0xFF77777E), size: 16),
+                _authorTap(
+                  context,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFFF4A4A), width: 1.2),
+                    ),
+                    child: const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Color(0xFFD2D2D7),
+                      child: Icon(Icons.person, color: Color(0xFF77777E), size: 16),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -65,11 +72,14 @@ class FeedPostCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        author,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF171717),
+                      _authorTap(
+                        context,
+                        child: Text(
+                          author,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF171717),
+                          ),
                         ),
                       ),
                       if (subtitle.isNotEmpty)
@@ -144,17 +154,30 @@ class FeedPostCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 14, color: Color(0xFF1B1B1D)),
-                children: [
-                  TextSpan(
-                    text: author,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 0,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: authorUserId > 0
+                      ? () => pushUserProfile(context, userId: authorUserId, username: author)
+                      : null,
+                  child: Text(
+                    author,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1B1B1D),
+                    ),
                   ),
-                  TextSpan(text: title.isNotEmpty ? ' $title' : ''),
-                ],
-              ),
+                ),
+                if (title.isNotEmpty)
+                  Text(
+                    ' $title',
+                    style: const TextStyle(fontSize: 14, color: Color(0xFF1B1B1D)),
+                  ),
+              ],
             ),
           ),
           if (description.isNotEmpty || subtitle.isNotEmpty)
@@ -214,6 +237,15 @@ class FeedPostCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _authorTap(BuildContext context, {required Widget child}) {
+    if (authorUserId <= 0) return child;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => pushUserProfile(context, userId: authorUserId, username: author),
+      child: child,
     );
   }
 
