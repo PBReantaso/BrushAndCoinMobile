@@ -15,13 +15,26 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _apiClient = ApiClient();
   final _messageController = TextEditingController();
-  late Future<List<Message>> _messagesFuture;
+  Future<List<Message>>? _messagesFuture;
   final ScrollController _scrollController = ScrollController();
+  int? _currentUserId;
+  late Conversation _conversation;
 
   @override
   void initState() {
     super.initState();
+    _conversation = widget.conversation;
+    _loadCurrentUserId();
     _messagesFuture = _loadMessages();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final userId = await _apiClient.getCurrentUserId();
+    if (mounted) {
+      setState(() {
+        _currentUserId = userId;
+      });
+    }
   }
 
   @override
@@ -33,7 +46,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<List<Message>> _loadMessages() async {
     final items = await _apiClient.fetchConversationMessages(widget.conversation.id!);
-    return items.map(Message.fromJson).toList();
+    final messages = items.map(Message.fromJson).toList();
+    // Sort in ascending order (oldest first)
+    messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return messages;
   }
 
   Future<void> _sendMessage() async {
@@ -46,7 +62,18 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _messagesFuture = _loadMessages();
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Scroll to bottom (newest message) after sending
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to send message: $e')),
       );
@@ -57,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.conversation.name),
+        title: Text(_conversation.name),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -85,17 +112,31 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
 
                 final messages = snapshot.data ?? [];
+                if (messages.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Start a conversation',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  );
+                }
+
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  // Scroll to bottom (newest message) when initially loaded
+                  if (_scrollController.hasClients) {
+                    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+                  }
+                });
+
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
+                  reverse: false,
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
-                    final isMe = message.senderId == 1; // Assuming current user id is 1
-                    return _MessageBubble(
-                      message: message,
-                      isMe: isMe,
-                    );
+                    final isMe = message.senderId == _currentUserId;
+                    return _MessageBubble(message: message, isMe: isMe);
                   },
                 );
               },
@@ -120,10 +161,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       filled: true,
                       fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
@@ -162,9 +200,7 @@ class _MessageBubble extends StatelessWidget {
         ),
         child: Text(
           message.content,
-          style: TextStyle(
-            color: isMe ? Colors.white : Colors.black,
-          ),
+          style: TextStyle(color: isMe ? Colors.white : Colors.black),
         ),
       ),
     );
