@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../models/app_models.dart';
 import '../../services/api_client.dart';
+import '../communication/messages/chat_screen.dart';
 
 class OtherUserProfileScreen extends StatefulWidget {
   final int userId;
@@ -112,10 +114,21 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
     }
   }
 
-  void _onMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Messaging is coming soon.')),
-    );
+  void _onMessage() async {
+    try {
+      final conversationJson = await _api.startConversation(widget.userId);
+      final conversation = Conversation.fromJson(conversationJson);
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(conversation: conversation),
+        ),
+      );
+    } catch (e) {
+      final msg = e is ApiException ? e.message : 'Could not start conversation.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
   }
 
   void _onTip() {

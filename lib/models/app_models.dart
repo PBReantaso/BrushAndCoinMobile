@@ -74,12 +74,50 @@ class Milestone {
 }
 
 class Conversation {
+  final int? id;
   final String name;
+  final String? lastMessage;
+  final DateTime? lastMessageDate;
 
-  Conversation({required this.name});
+  Conversation({this.id, required this.name, this.lastMessage, this.lastMessageDate});
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
-    return Conversation(name: (json['name'] as String?) ?? '');
+    return Conversation(
+      id: json['id'] as int?,
+      name: (json['name'] as String?) ?? '',
+      lastMessage: json['lastMessage'] as String?,
+      lastMessageDate: json['lastMessageDate'] != null
+          ? DateTime.tryParse(json['lastMessageDate'] as String)
+          : null,
+    );
+  }
+}
+
+class Message {
+  final int? id;
+  final int conversationId;
+  final int senderId;
+  final String content;
+  final DateTime createdAt;
+
+  Message({
+    this.id,
+    required this.conversationId,
+    required this.senderId,
+    required this.content,
+    required this.createdAt,
+  });
+
+  factory Message.fromJson(Map<String, dynamic> json) {
+    return Message(
+      id: json['id'] as int?,
+      conversationId: (json['conversationId'] as num?)?.toInt() ?? 0,
+      senderId: (json['senderId'] as num?)?.toInt() ?? 0,
+      content: (json['content'] as String?) ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
+    );
   }
 }
 

@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _showComingSoon(String message) {
+  void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -48,14 +48,21 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login({bool isAutoLogin = false}) async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (!isAutoLogin && (email.isEmpty || password.isEmpty)) {
+      _showSnack('Enter email and password.');
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
 
     try {
       await _apiClient.login(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: email,
+        password: password,
         rememberMe: _rememberMe,
       );
       if (!mounted) {
@@ -67,14 +74,18 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       if (!isAutoLogin) {
-        _showComingSoon(e.message);
+        _showSnack(e.message);
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) {
         return;
       }
       if (!isAutoLogin) {
-        _showComingSoon('Unable to reach server. Please try again.');
+        _showSnack(
+          'Cannot reach API (${e.runtimeType}). '
+          'Start the server, then on a real phone use: '
+          'flutter run --dart-define=API_BASE_URL=http://YOUR_PC_IP:4000',
+        );
       }
     } finally {
       if (mounted) {
@@ -165,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     onPressed: () =>
-                        _showComingSoon('Forgot password coming soon'),
+                        _showSnack('Forgot password coming soon'),
                     child: const Text(
                       'Forgot Password',
                       style: TextStyle(
