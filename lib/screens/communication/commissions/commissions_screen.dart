@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 enum _CommissionFilter { all, pending, accepted, inProgress, completed }
 
 class _CommissionRequest {
   final String name;
   final String message;
-  final String dateLabel;
+  final DateTime timestamp;
   final String statusLabel;
   final _CommissionFilter status;
 
@@ -16,12 +17,26 @@ class _CommissionRequest {
   const _CommissionRequest({
     required this.name,
     required this.message,
-    required this.dateLabel,
+    required this.timestamp,
     required this.statusLabel,
     required this.status,
     required this.backgroundColor,
     required this.sideBarColor,
   });
+
+  String get dateLabel {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(timestamp.year, timestamp.month, timestamp.day);
+
+    if (messageDate == today) {
+      // Show time if today
+      return DateFormat('h:mm a').format(timestamp).toLowerCase();
+    } else {
+      // Show date
+      return DateFormat('MM/dd/yyyy').format(timestamp);
+    }
+  }
 }
 
 class CommissionsScreen extends StatefulWidget {
@@ -37,11 +52,11 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
   List<_CommissionRequest> _commissionRequests() {
     // Note: API conversations currently only contains `name`, so these
     // request cards are UI placeholders to match your screenshot layout.
-    return const [
+    return [
       _CommissionRequest(
         name: 'Michael',
         message: 'See the commission request below.',
-        dateLabel: '03/19/2026',
+        timestamp: DateTime(2026, 3, 19),
         statusLabel: 'Pending',
         status: _CommissionFilter.pending,
         backgroundColor: Colors.white,
@@ -50,7 +65,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
       _CommissionRequest(
         name: 'Donatello',
         message: 'My rat splinter likes your art',
-        dateLabel: '03/17/2026',
+        timestamp: DateTime(2026, 3, 17),
         statusLabel: 'Accepted',
         status: _CommissionFilter.accepted,
         backgroundColor: Colors.white,
@@ -59,7 +74,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
       _CommissionRequest(
         name: 'Leonardo',
         message: '6×7 canvas?',
-        dateLabel: '9:41 pm',
+        timestamp: DateTime.now().subtract(Duration(hours: 2)),
         statusLabel: 'In progress',
         status: _CommissionFilter.inProgress,
         backgroundColor: Color(0xFFFFE9E9),
@@ -68,7 +83,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
       _CommissionRequest(
         name: 'Raphael',
         message: 'The commission was successful',
-        dateLabel: '02/17/2026',
+        timestamp: DateTime(2026, 2, 17),
         statusLabel: 'Completed',
         status: _CommissionFilter.completed,
         backgroundColor: Colors.white,
@@ -77,7 +92,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
       _CommissionRequest(
         name: 'Zoro',
         message: 'The commission failed',
-        dateLabel: '02/17/2026',
+        timestamp: DateTime(2026, 2, 17),
         statusLabel: 'Failed',
         status: _CommissionFilter.all,
         backgroundColor: Color(0xFFF3F3F6),

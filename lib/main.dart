@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 import 'navigation/app_route_observer.dart';
 import 'screens/auth/login_screen.dart';
@@ -29,6 +30,7 @@ class NoStretchScrollBehavior extends MaterialScrollBehavior {
 }
 
 void main() {
+  tz.initializeTimeZones();
   runApp(const BrushAndCoinApp());
 }
 

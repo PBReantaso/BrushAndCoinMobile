@@ -1,4 +1,10 @@
-enum ProjectStatus { inquiry, inProgress, completed }
+import 'package:timezone/timezone.dart' as tz;
+
+enum ProjectStatus {
+  inquiry,
+  inProgress,
+  completed,
+}
 
 class Artist {
   final String name;
@@ -77,17 +83,18 @@ class Conversation {
   final int? id;
   final String name;
   final String? lastMessage;
-  final DateTime? lastMessageDate;
+  final tz.TZDateTime? lastMessageDate;
 
   Conversation({this.id, required this.name, this.lastMessage, this.lastMessageDate});
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
+    final phLocation = tz.getLocation('Asia/Manila');
     return Conversation(
       id: json['id'] as int?,
       name: (json['name'] as String?) ?? '',
       lastMessage: json['lastMessage'] as String?,
       lastMessageDate: json['lastMessageDate'] != null
-          ? DateTime.tryParse(json['lastMessageDate'] as String)
+          ? tz.TZDateTime.from(DateTime.parse(json['lastMessageDate'] as String), phLocation)
           : null,
     );
   }
@@ -98,7 +105,7 @@ class Message {
   final int conversationId;
   final int senderId;
   final String content;
-  final DateTime createdAt;
+  final tz.TZDateTime createdAt;
 
   Message({
     this.id,
@@ -109,14 +116,15 @@ class Message {
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
+    final phLocation = tz.getLocation('Asia/Manila');
     return Message(
       id: json['id'] as int?,
       conversationId: (json['conversationId'] as num?)?.toInt() ?? 0,
       senderId: (json['senderId'] as num?)?.toInt() ?? 0,
       content: (json['content'] as String?) ?? '',
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
-          : DateTime.now(),
+          ? tz.TZDateTime.from(DateTime.parse(json['createdAt'] as String), phLocation)
+          : tz.TZDateTime.now(phLocation),
     );
   }
 }
