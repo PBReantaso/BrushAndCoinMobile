@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
@@ -69,13 +70,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
     Color(0xFF8A6D5A),
   ];
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
+  String _formatDate(tz.TZDateTime date) {
+    final phLocation = tz.getLocation('Asia/Manila');
+    final now = tz.TZDateTime.now(phLocation);
     final difference = now.difference(date);
 
-    if (difference.inDays == 0) {
-      // Today, show time
-      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} ${date.hour >= 12 ? 'pm' : 'am'}';
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} min ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} hr ago';
     } else if (difference.inDays == 1) {
       return 'Yesterday';
     } else if (difference.inDays < 7) {
