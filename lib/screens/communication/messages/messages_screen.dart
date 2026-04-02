@@ -26,7 +26,40 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Future<List<Conversation>> _loadConversations() async {
     final items = await _apiClient.fetchMessages();
-    return items.map(Conversation.fromJson).toList();
+    final conversations = items.map(Conversation.fromJson).toList();
+
+    // Sort by last message date descending (newest first)
+    conversations.sort((a, b) {
+      final aDate = a.lastMessageDate;
+      final bDate = b.lastMessageDate;
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+      return bDate.compareTo(aDate);
+    });
+
+    // Deduplicate by ID and name to avoid showing the same person multiple times.
+    final seenIds = <int>{};
+    final seenNames = <String>{};
+    final unique = <Conversation>[];
+
+    for (final convo in conversations) {
+      final id = convo.id;
+      final name = convo.name.trim();
+
+      // Hide non-existing or unnamed user conversations.
+      if (name.isEmpty) continue;
+
+      if (id != null && seenIds.contains(id)) continue;
+      if (seenNames.contains(name)) continue;
+
+      if (id != null) seenIds.add(id);
+      seenNames.add(name);
+
+      unique.add(convo);
+    }
+
+    return unique;
   }
 
   List<Color> _avatarColors = const [
@@ -113,10 +146,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           builder: (context) => ChatScreen(conversation: convo),
                         ),
                       );
-                      // Refresh after returning from chat
-                      setState(() {
-                        _conversationsFuture = _loadConversations();
-                      });
+                      // Wait a moment for backend to update timestamp, then refresh
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (mounted) {
+                        setState(() {
+                          _conversationsFuture = _loadConversations();
+                        });
+                      }
                     },
                     child: _ConversationCard(
                       name: convo.name,
