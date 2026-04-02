@@ -4,11 +4,11 @@ import 'navigation/app_route_observer.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_role_screen.dart';
 import 'screens/auth/signup_screen.dart';
+import 'screens/communication/communication_screen.dart';
 import 'screens/home/calendar_map_screen.dart';
-import 'screens/home/dashboard_screen.dart';
-import 'screens/home/messages_screen.dart';
 import 'screens/home/create_event_screen.dart';
 import 'screens/home/create_post_screen.dart';
+import 'screens/home/dashboard_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'state/app_profile.dart';
@@ -91,7 +91,7 @@ class _MainShellState extends State<MainShell> {
   List<Widget> get _pages => [
         DashboardScreen(key: ValueKey(_homeRefreshTick)),
         CalendarMapScreen(key: ValueKey(_calendarRefreshTick)),
-        const MessagesScreen(),
+        const CommunicationScreen(),
         const ProfileScreen(),
       ];
 

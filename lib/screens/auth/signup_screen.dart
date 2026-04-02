@@ -31,7 +31,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _showComingSoon(String message) {
+  void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -39,11 +39,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _signUp() async {
     if (_passwordController.text != _retypeController.text) {
-      _showComingSoon('Passwords do not match.');
+      _showSnack('Passwords do not match.');
       return;
     }
     if (!_agree) {
-      _showComingSoon('Please agree to the terms first.');
+      _showSnack('Please agree to the terms first.');
       return;
     }
 
@@ -65,12 +65,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) {
         return;
       }
-      _showComingSoon(e.message);
-    } catch (_) {
+      _showSnack(e.message);
+    } catch (e) {
       if (!mounted) {
         return;
       }
-      _showComingSoon('Unable to reach server. Please try again.');
+      _showSnack(
+        'Cannot reach API (${e.runtimeType}). '
+        'On a real phone use: '
+        'flutter run --dart-define=API_BASE_URL=http://YOUR_PC_IP:4000',
+      );
     } finally {
       if (mounted) {
         setState(() {

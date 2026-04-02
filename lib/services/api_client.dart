@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:http/http.dart' as http;
+
 import 'token_storage.dart';
 
 class ApiException implements Exception {
@@ -27,13 +30,28 @@ class ApiClient {
   static int? _currentUserId;
   static String? _currentUsername;
 
-  // For Android emulator use 10.0.2.2. For iOS simulator use localhost.
-  static const String _baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:4000',
-  );
+  /// Override with `--dart-define=API_BASE_URL=http://YOUR_PC_IP:4000` (required on a physical device).
+  static const String _envApiBaseUrl = String.fromEnvironment('API_BASE_URL');
 
-  Uri _uri(String path) => Uri.parse('$_baseUrl$path');
+  static String _defaultBaseUrl() {
+    if (kIsWeb) {
+      return 'http://localhost:4000';
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        // 10.0.2.2 = host loopback from the Android emulator only.
+        return 'http://10.0.2.2:4000';
+      case TargetPlatform.iOS:
+        return 'http://127.0.0.1:4000';
+      default:
+        return 'http://127.0.0.1:4000';
+    }
+  }
+
+  static String get _baseUrl =>
+      _envApiBaseUrl.isNotEmpty ? _envApiBaseUrl : _defaultBaseUrl();
+
+  Uri _uri(String path) => Uri.parse('${_baseUrl}$path');
 
   Future<void> login({
     required String email,
@@ -44,7 +62,7 @@ class ApiClient {
       _uri('/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
-    );
+    ).timeout(const Duration(seconds: 10));
     final json = _throwIfErrorAndReadJson(response);
     await _setSessionFromJson(json, rememberMe: rememberMe);
   }
@@ -130,6 +148,37 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> fetchMessages() async {
     final json = await _getJsonProtected('/messages');
     return _readList(json['conversations']);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchConversationMessages(int conversationId) async {
+    final json = await _getJsonProtected('/messages/$conversationId');
+    return _readList(json['messages']);
+  }
+
+  Future<Map<String, dynamic>> sendMessage(int conversationId, String content) async {
+    final response = await _authorizedPost(
+      '/messages/$conversationId',
+      body: {'content': content},
+    );
+    final json = _throwIfErrorAndReadJson(response);
+    final message = json['message'];
+    if (message is Map) {
+      return message.map((k, v) => MapEntry('$k', v));
+    }
+    throw ApiException('Unexpected response format.');
+  }
+
+  Future<Map<String, dynamic>> startConversation(int otherUserId) async {
+    final response = await _authorizedPost(
+      '/conversations/start',
+      body: {'otherUserId': otherUserId},
+    );
+    final json = _throwIfErrorAndReadJson(response);
+    final conversation = json['conversation'];
+    if (conversation is Map) {
+      return conversation.map((k, v) => MapEntry('$k', v));
+    }
+    throw ApiException('Unexpected response format.');
   }
 
   Future<List<Map<String, dynamic>>> fetchEvents() async {
