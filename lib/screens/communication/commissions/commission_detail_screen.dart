@@ -186,7 +186,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                         Expanded(
                           child: Text(
                             'This is an ${widget.commission.isUrgent ? 'urgent' : 'normal'} commission',
-                            style: const TextStyle(fontSize: 14),
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
                       ],
@@ -256,9 +256,12 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                   ] else if (widget.commission.status ==
                           ProjectStatus.accepted ||
                       widget.commission.status == ProjectStatus.inProgress) ...[
-                    const Text('Artwork Submission',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      'Artwork Submission',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
                     const SizedBox(height: 12),
                     _buildArtworkUploader(),
                     const SizedBox(height: 12),
@@ -412,16 +415,18 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   }
 
   Widget _buildDetailRow(String label, String value, {bool colored = false}) {
+    final t = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        Text(
+          label,
+          style: t.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 14,
+          style: t.bodyMedium?.copyWith(
             color: colored ? const Color(0xFFD32F2F) : Colors.black87,
             fontWeight: colored ? FontWeight.bold : FontWeight.normal,
           ),

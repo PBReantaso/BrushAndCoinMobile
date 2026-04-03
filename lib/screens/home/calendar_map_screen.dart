@@ -4,7 +4,16 @@ import 'package:flutter/material.dart';
 
 import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
+import '../../theme/content_spacing.dart';
 import '../../widgets/common/bc_app_bar.dart';
+
+enum _EventSortMode {
+  timeEarliest,
+  timeLatest,
+  titleAZ,
+  titleZA,
+  venueAZ,
+}
 
 class CalendarMapScreen extends StatefulWidget {
   const CalendarMapScreen({super.key});
@@ -19,6 +28,7 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
   late DateTime _activeMonth;
   late int _selectedDay;
   late Future<List<_EventItem>> _eventsFuture;
+  _EventSortMode _eventSortMode = _EventSortMode.timeEarliest;
 
   @override
   void initState() {
@@ -76,20 +86,35 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
           }
 
           final allEvents = snapshot.data ?? const <_EventItem>[];
+          final daysWithEventsInMonth = <int>{};
+          for (final e in allEvents) {
+            if (e.eventDate.year == _activeMonth.year &&
+                e.eventDate.month == _activeMonth.month) {
+              daysWithEventsInMonth.add(e.eventDate.day);
+            }
+          }
           final eventsOnSelectedDay = allEvents.where((e) {
             return e.eventDate.year == _activeMonth.year &&
                 e.eventDate.month == _activeMonth.month &&
                 e.eventDate.day == _selectedDay;
           }).toList();
+          final sortedDayEvents = _sortEvents(eventsOnSelectedDay, _eventSortMode);
+          final t = Theme.of(context).textTheme;
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              16 + kContentBelowAppBarPadding,
+              16,
+              16,
+            ),
             children: [
               _CalendarCard(
                 monthLabel: header,
                 leadingBlanks: leadingBlanks,
                 daysInMonth: daysInMonth,
                 selectedDay: _selectedDay,
+                daysWithEvents: daysWithEventsInMonth,
                 onPrevMonth: _prevMonth,
                 onNextMonth: _nextMonth,
                 onSelectDay: (day) => setState(() => _selectedDay = day),
@@ -106,34 +131,103 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
                     ),
                   ),
                   onPressed: () {},
-                  child: const Text(
+                  child: Text(
                     'Locate Events Near Me',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: t.labelLarge?.copyWith(color: Colors.white),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Events',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Events',
+                    style: t.titleSmall?.copyWith(color: Colors.black87),
+                  ),
+                  const Spacer(),
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      highlightColor: const Color(0xFFFFE4E4),
+                      splashColor: const Color(0x26FF4A4A),
+                    ),
+                    child: PopupMenuButton<_EventSortMode>(
+                      tooltip: 'Sort events',
+                      initialValue: _eventSortMode,
+                      onSelected: (mode) => setState(() => _eventSortMode = mode),
+                      position: PopupMenuPosition.under,
+                      offset: const Offset(0, 6),
+                      elevation: 10,
+                      shadowColor: Colors.black.withValues(alpha: 0.14),
+                      surfaceTintColor: Colors.transparent,
+                      color: Colors.white,
+                      menuPadding: const EdgeInsets.symmetric(vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 188),
+                      popUpAnimationStyle: AnimationStyle.noAnimation,
+                      itemBuilder: (menuContext) {
+                        final m = Theme.of(menuContext).textTheme;
+                        final itemStyle = m.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF222222),
+                        );
+                        return [
+                          PopupMenuItem(
+                            value: _EventSortMode.timeEarliest,
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Text('Time · earliest first', style: itemStyle),
+                          ),
+                          PopupMenuItem(
+                            value: _EventSortMode.timeLatest,
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Text('Time · latest first', style: itemStyle),
+                          ),
+                          PopupMenuItem(
+                            value: _EventSortMode.titleAZ,
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Text('Title · A to Z', style: itemStyle),
+                          ),
+                          PopupMenuItem(
+                            value: _EventSortMode.titleZA,
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Text('Title · Z to A', style: itemStyle),
+                          ),
+                          PopupMenuItem(
+                            value: _EventSortMode.venueAZ,
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Text('Venue · A to Z', style: itemStyle),
+                          ),
+                        ];
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        child: Icon(
+                          Icons.sort_rounded,
+                          color: Colors.black.withValues(alpha: 0.75),
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               if (eventsOnSelectedDay.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Text(
                     'No events on this day.',
-                    style: TextStyle(color: Colors.black54),
+                    style: t.bodyMedium?.copyWith(color: Colors.black54, fontWeight: FontWeight.w400),
                   ),
                 ),
-              for (final e in eventsOnSelectedDay) ...[
+              for (final e in sortedDayEvents) ...[
                 _EventCard(
                   day: e.eventDate.day,
                   monthShort: _monthShort(e.eventDate),
@@ -169,6 +263,7 @@ class _CalendarCard extends StatelessWidget {
   final int leadingBlanks;
   final int daysInMonth;
   final int selectedDay;
+  final Set<int> daysWithEvents;
   final VoidCallback onPrevMonth;
   final VoidCallback onNextMonth;
   final ValueChanged<int> onSelectDay;
@@ -178,6 +273,7 @@ class _CalendarCard extends StatelessWidget {
     required this.leadingBlanks,
     required this.daysInMonth,
     required this.selectedDay,
+    required this.daysWithEvents,
     required this.onPrevMonth,
     required this.onNextMonth,
     required this.onSelectDay,
@@ -186,6 +282,7 @@ class _CalendarCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const weekdayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    final t = Theme.of(context).textTheme;
 
     final items = <Widget>[];
     for (int i = 0; i < leadingBlanks; i++) {
@@ -193,6 +290,19 @@ class _CalendarCard extends StatelessWidget {
     }
     for (int day = 1; day <= daysInMonth; day++) {
       final isSelected = day == selectedDay;
+      final hasEvent = daysWithEvents.contains(day);
+      final Color circleColor;
+      final Color labelColor;
+      if (isSelected) {
+        circleColor = const Color(0xFFFF3D3D);
+        labelColor = Colors.white;
+      } else if (hasEvent) {
+        circleColor = const Color(0xFFFFE4E4);
+        labelColor = const Color(0xFF3B3B3B);
+      } else {
+        circleColor = Colors.transparent;
+        labelColor = const Color(0xFF3B3B3B);
+      }
       items.add(
         GestureDetector(
           onTap: () => onSelectDay(day),
@@ -201,15 +311,15 @@ class _CalendarCard extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFFF3D3D) : Colors.transparent,
+                color: circleColor,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
               child: Text(
                 '$day',
-                style: TextStyle(
+                style: t.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? Colors.white : const Color(0xFF3B3B3B),
+                  color: labelColor,
                 ),
               ),
             ),
@@ -242,11 +352,7 @@ class _CalendarCard extends StatelessWidget {
                   child: Text(
                     monthLabel,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF3B3B3B),
-                    ),
+                    style: t.titleMedium?.copyWith(color: const Color(0xFF3B3B3B)),
                   ),
                 ),
                 IconButton(
@@ -264,11 +370,10 @@ class _CalendarCard extends StatelessWidget {
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: t.labelSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.0,
-                        color: Color(0xFFB0B0B5),
+                        color: const Color(0xFFB0B0B5),
                       ),
                     ),
                   ),
@@ -311,6 +416,7 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Material(
       color: const Color(0xFFF1F1F3),
       borderRadius: BorderRadius.circular(14),
@@ -324,31 +430,20 @@ class _EventCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    '$day',
-                    style: const TextStyle(
-                      fontSize: 46,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.black,
-                    ),
-                  ),
+                  Text('$day', style: t.displaySmall),
                   const SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         monthShort,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                        ),
+                        style: t.titleSmall?.copyWith(color: Colors.black),
                       ),
                       Text(
                         '$year',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
+                        style: t.bodySmall?.copyWith(
                           color: Colors.black54,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -356,10 +451,7 @@ class _EventCard extends StatelessWidget {
                   const Spacer(),
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
+                    style: t.titleSmall?.copyWith(color: Colors.black87),
                   ),
                 ],
               ),
@@ -367,7 +459,7 @@ class _EventCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: t.bodySmall?.copyWith(
                     color: Colors.black54,
                     fontWeight: FontWeight.w600,
                   ),
@@ -390,6 +482,72 @@ class _EventCard extends StatelessWidget {
       ),
     );
   }
+}
+
+int? _dayListMinutesFromTimeString(String raw) {
+  var s = raw.trim().toUpperCase();
+  if (s.isEmpty) return null;
+  final hasAm = s.contains('AM');
+  final hasPm = s.contains('PM');
+  if (hasAm || hasPm) {
+    s = s.replaceAll('AM', '').replaceAll('PM', '').trim();
+  }
+  final colon = s.indexOf(':');
+  late int hour;
+  var minute = 0;
+  if (colon < 0) {
+    final h = int.tryParse(s);
+    if (h == null) return null;
+    hour = h;
+  } else {
+    final h = int.tryParse(s.substring(0, colon).trim());
+    if (h == null) return null;
+    hour = h;
+    final rest = s.substring(colon + 1).trim();
+    final digits = RegExp(r'^\d{1,2}').stringMatch(rest) ?? '';
+    minute = int.tryParse(digits) ?? 0;
+  }
+  if (hasAm || hasPm) {
+    if (hasPm && hour != 12) hour += 12;
+    if (hasAm && hour == 12) hour = 0;
+  }
+  return hour * 60 + minute.clamp(0, 59);
+}
+
+int? _dayListMinutesForEvent(_EventItem e) {
+  final main = _dayListMinutesFromTimeString(e.eventTime);
+  if (main != null) return main;
+  for (final sch in e.schedules) {
+    final m = _dayListMinutesFromTimeString(sch.time);
+    if (m != null) return m;
+  }
+  return null;
+}
+
+int _compareEventsByTime(_EventItem a, _EventItem b, {required bool latestFirst}) {
+  final ma = _dayListMinutesForEvent(a);
+  final mb = _dayListMinutesForEvent(b);
+  if (ma == null && mb == null) return 0;
+  if (ma == null) return 1;
+  if (mb == null) return -1;
+  return latestFirst ? mb.compareTo(ma) : ma.compareTo(mb);
+}
+
+List<_EventItem> _sortEvents(List<_EventItem> events, _EventSortMode mode) {
+  final out = List<_EventItem>.from(events);
+  switch (mode) {
+    case _EventSortMode.titleAZ:
+      out.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    case _EventSortMode.titleZA:
+      out.sort((a, b) => b.title.toLowerCase().compareTo(a.title.toLowerCase()));
+    case _EventSortMode.venueAZ:
+      out.sort((a, b) => a.venue.toLowerCase().compareTo(b.venue.toLowerCase()));
+    case _EventSortMode.timeEarliest:
+      out.sort((a, b) => _compareEventsByTime(a, b, latestFirst: false));
+    case _EventSortMode.timeLatest:
+      out.sort((a, b) => _compareEventsByTime(a, b, latestFirst: true));
+  }
+  return out;
 }
 
 class _EventItem {
@@ -589,6 +747,7 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
     final dateText = '${e.eventDate.day} ${_monthShort(e.eventDate)} ${e.eventDate.year}';
     final timeText = e.eventTime.isEmpty ? 'TBA' : e.eventTime;
 
+    final t = Theme.of(context).textTheme;
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F6),
       appBar: AppBar(
@@ -599,9 +758,9 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Back to Events',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
       body: ListView(
@@ -625,10 +784,9 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                           Expanded(
                             child: Text(
                               e.title,
-                              style: const TextStyle(
-                                fontSize: 20,
+                              style: t.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF141414),
+                                color: const Color(0xFF141414),
                               ),
                             ),
                           ),
@@ -640,9 +798,8 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                             ),
                             child: Text(
                               e.category.isEmpty ? 'EVENT' : e.category.toUpperCase(),
-                              style: const TextStyle(
+                              style: t.labelSmall?.copyWith(
                                 color: Colors.white,
-                                fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -652,16 +809,16 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                       const SizedBox(height: 8),
                       Text(
                         '$dateText   •   $timeText',
-                        style: const TextStyle(
-                          color: Color(0xFF55565B),
+                        style: t.bodyMedium?.copyWith(
+                          color: const Color(0xFF55565B),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         e.locationText.isEmpty ? e.venue : e.locationText,
-                        style: const TextStyle(
-                          color: Color(0xFF55565B),
+                        style: t.bodyMedium?.copyWith(
+                          color: const Color(0xFF55565B),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -673,12 +830,11 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                             userId: e.createdBy!,
                             username: 'User',
                           ),
-                          child: const Text(
+                          child: Text(
                             'View organizer profile',
-                            style: TextStyle(
-                              color: Color(0xFFFF4A4A),
+                            style: t.bodyMedium?.copyWith(
+                              color: const Color(0xFFFF4A4A),
                               fontWeight: FontWeight.w700,
-                              fontSize: 13,
                             ),
                           ),
                         ),
@@ -731,15 +887,18 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Event Schedule',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 10),
                   if (e.schedules.isEmpty)
-                    const Text(
+                    Text(
                       'No schedule added yet.',
-                      style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                      style: t.bodyMedium?.copyWith(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   for (final s in e.schedules) ...[
                     Container(
@@ -755,8 +914,8 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                             width: 72,
                             child: Text(
                               s.time.isEmpty ? 'TBA' : s.time,
-                              style: const TextStyle(
-                                color: Color(0xFFFF4A4A),
+                              style: t.titleSmall?.copyWith(
+                                color: const Color(0xFFFF4A4A),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -767,17 +926,17 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                               children: [
                                 Text(
                                   s.name.isEmpty ? 'Activity' : s.name,
-                                  style: const TextStyle(
+                                  style: t.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF1E1F24),
+                                    color: const Color(0xFF1E1F24),
                                   ),
                                 ),
                                 if (s.description.isNotEmpty)
                                   Text(
                                     s.description,
-                                    style: const TextStyle(
-                                      color: Color(0xFF6A6A70),
-                                      fontSize: 12,
+                                    style: t.bodySmall?.copyWith(
+                                      color: const Color(0xFF6A6A70),
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                               ],
@@ -882,9 +1041,9 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Edit Event',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -1016,10 +1175,10 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
           alignment: Alignment.center,
           child: Text(
             label,
-            style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF2A2A2E),
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: selected ? Colors.white : const Color(0xFF2A2A2E),
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ),
       ),
@@ -1027,6 +1186,7 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
   }
 
   Widget _infoCard({required String title, required String content}) {
+    final it = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1038,13 +1198,13 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: it.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 10),
           Text(
             content,
-            style: const TextStyle(
-              color: Color(0xFF55565B),
+            style: it.bodyMedium?.copyWith(
+              color: const Color(0xFF55565B),
               fontWeight: FontWeight.w600,
             ),
           ),

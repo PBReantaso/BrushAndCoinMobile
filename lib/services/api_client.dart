@@ -242,6 +242,12 @@ class ApiClient {
     return _readList(json['posts']);
   }
 
+  Future<List<Map<String, dynamic>>> fetchTaggedPosts(String tag) async {
+    final q = Uri.encodeQueryComponent(tag.trim());
+    final json = await _getJsonProtected('/posts/tagged?tag=$q');
+    return _readList(json['posts']);
+  }
+
   Future<Map<String, dynamic>> createPost({
     required String title,
     required String description,

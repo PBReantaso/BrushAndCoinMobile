@@ -76,6 +76,7 @@ class _CommissionPaymentConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(color: Colors.black),
@@ -117,7 +118,7 @@ class _CommissionPaymentConfirmationScreenState
             const Text('Payment Method',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(_paymentMethodLabel, style: const TextStyle(fontSize: 16)),
+            Text(_paymentMethodLabel, style: t.titleMedium),
             const Spacer(),
             ElevatedButton(
               onPressed: _isProcessing ? null : () => _processPayment(context),
@@ -134,9 +135,12 @@ class _CommissionPaymentConfirmationScreenState
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Pay now',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  : Text(
+                      'Pay now',
+                      style: t.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -146,21 +150,25 @@ class _CommissionPaymentConfirmationScreenState
 
   Widget _priceRow(String label, double value,
       {bool bold = false, bool highlighted = false}) {
+    final t = Theme.of(context).textTheme;
+    final amountStyle = (highlighted ? t.titleMedium : t.bodyMedium)?.copyWith(
+      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+      color: highlighted ? const Color(0xFFD32F2F) : Colors.black87,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+          Text(
+            label,
+            style: t.bodyMedium?.copyWith(
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
           Text(
             '₱${value.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-              color: highlighted ? const Color(0xFFD32F2F) : Colors.black87,
-              fontSize: highlighted ? 16 : 14,
-            ),
+            style: amountStyle,
           ),
         ],
       ),

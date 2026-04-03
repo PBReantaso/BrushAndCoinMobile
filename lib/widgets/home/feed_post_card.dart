@@ -8,7 +8,10 @@ class FeedPostCard extends StatelessWidget {
   final int postId;
   final int authorUserId;
   final String author;
+  /// Shown under the username when [category] is empty (typically post date).
   final String subtitle;
+  /// e.g. "Digital Art"; when non-empty, shown under the username instead of [subtitle].
+  final String category;
   final String title;
   final String description;
   final List<String> tags;
@@ -18,6 +21,7 @@ class FeedPostCard extends StatelessWidget {
   final bool likedByMe;
   final VoidCallback onLikeTap;
   final VoidCallback onCommentTap;
+  final ValueChanged<String>? onTagTap;
 
   const FeedPostCard({
     super.key,
@@ -25,6 +29,7 @@ class FeedPostCard extends StatelessWidget {
     required this.authorUserId,
     required this.author,
     required this.subtitle,
+    this.category = '',
     required this.title,
     required this.description,
     required this.tags,
@@ -34,10 +39,15 @@ class FeedPostCard extends StatelessWidget {
     required this.likedByMe,
     required this.onLikeTap,
     required this.onCommentTap,
+    this.onTagTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final categoryTrim = category.trim();
+    final headerSecondary =
+        categoryTrim.isNotEmpty ? categoryTrim : subtitle;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -54,17 +64,10 @@ class FeedPostCard extends StatelessWidget {
               children: [
                 _authorTap(
                   context,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFFF4A4A), width: 1.2),
-                    ),
-                    child: const CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Color(0xFFD2D2D7),
-                      child: Icon(Icons.person, color: Color(0xFF77777E), size: 16),
-                    ),
+                  child: const CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Color(0xFFD2D2D7),
+                    child: Icon(Icons.person, color: Color(0xFF77777E), size: 16),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -76,18 +79,17 @@ class FeedPostCard extends StatelessWidget {
                         context,
                         child: Text(
                           author,
-                          style: const TextStyle(
+                          style: t.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF171717),
+                            color: const Color(0xFF171717),
                           ),
                         ),
                       ),
-                      if (subtitle.isNotEmpty)
+                      if (headerSecondary.isNotEmpty)
                         Text(
-                          subtitle,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF6C6C72),
+                          headerSecondary,
+                          style: t.labelSmall?.copyWith(
+                            color: const Color(0xFF6C6C72),
                           ),
                         ),
                     ],
@@ -127,7 +129,10 @@ class FeedPostCard extends StatelessWidget {
                 const SizedBox(width: 3),
                 Text(
                   '$likeCount',
-                  style: const TextStyle(fontSize: 16, color: Color(0xFF111111)),
+                  style: t.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF111111),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 InkWell(
@@ -141,12 +146,21 @@ class FeedPostCard extends StatelessWidget {
                 const SizedBox(width: 3),
                 Text(
                   '$commentCount',
-                  style: const TextStyle(fontSize: 16, color: Color(0xFF111111)),
+                  style: t.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF111111),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 const Icon(Icons.repeat_rounded, color: Color(0xFF202025), size: 22),
                 const SizedBox(width: 3),
-                const Text('0', style: TextStyle(fontSize: 16, color: Color(0xFF111111))),
+                Text(
+                  '0',
+                  style: t.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF111111),
+                  ),
+                ),
                 const Spacer(),
                 const Icon(Icons.bookmark_border, color: Color(0xFF202025), size: 23),
               ],
@@ -165,17 +179,16 @@ class FeedPostCard extends StatelessWidget {
                       : null,
                   child: Text(
                     author,
-                    style: const TextStyle(
-                      fontSize: 14,
+                    style: t.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1B1B1D),
+                      color: const Color(0xFF1B1B1D),
                     ),
                   ),
                 ),
                 if (title.isNotEmpty)
                   Text(
                     ' $title',
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF1B1B1D)),
+                    style: t.bodyMedium?.copyWith(color: const Color(0xFF1B1B1D)),
                   ),
               ],
             ),
@@ -187,23 +200,26 @@ class FeedPostCard extends StatelessWidget {
                 description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF3F3F45)),
+                style: t.bodyMedium?.copyWith(color: const Color(0xFF3F3F45)),
               ),
             ),
-          if (subtitle.isNotEmpty)
+          if (subtitle.isNotEmpty && categoryTrim.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
               child: Text(
                 subtitle,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF8A8A90)),
+                style: t.bodySmall?.copyWith(
+                  color: const Color(0xFF8A8A90),
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
           if (tags.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(10, 8, 10, 0),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
               child: Text(
                 'Tags',
-                style: TextStyle(fontSize: 12, color: Color(0xFF353535)),
+                style: t.bodySmall?.copyWith(color: const Color(0xFF353535)),
               ),
             ),
             Padding(
@@ -212,22 +228,23 @@ class FeedPostCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final t in tags)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F0F4),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFE0E0E6)),
-                      ),
-                      child: Text(
-                        t,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF2B2B31),
+                  for (final tag in tags)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: onTagTap == null ? null : () => onTagTap!(_normalizeTag(tag)),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F0F4),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0xFFE0E0E6)),
+                        ),
+                        child: Text(
+                          '#${_normalizeTag(tag)}',
+                          style: t.labelSmall?.copyWith(color: const Color(0xFF2B2B31)),
                         ),
                       ),
                     ),
@@ -294,5 +311,9 @@ class FeedPostCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _normalizeTag(String raw) {
+  return raw.trim().replaceFirst(RegExp(r'^#'), '');
 }
 

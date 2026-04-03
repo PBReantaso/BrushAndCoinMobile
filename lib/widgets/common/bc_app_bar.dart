@@ -10,23 +10,32 @@ class BcAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final logoBase = Theme.of(context).textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.3,
+        ) ??
+        const TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.3,
+        );
     return AppBar(
-      backgroundColor: const Color(0xFFEDEDF1),
+      backgroundColor: const Color(0xFFFFFFFF),
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       titleSpacing: 16,
       title: Row(
         children: [
           RichText(
-            text: const TextSpan(
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.3,
-              ),
+            text: TextSpan(
+              style: logoBase,
               children: [
-                TextSpan(text: 'B', style: TextStyle(color: Colors.black)),
-                TextSpan(text: '&', style: TextStyle(color: Colors.black)),
-                TextSpan(text: 'C', style: TextStyle(color: Color(0xFFFF4A4A))),
+                const TextSpan(text: 'B', style: TextStyle(color: Colors.black)),
+                const TextSpan(text: '&', style: TextStyle(color: Colors.black)),
+                TextSpan(
+                  text: 'C',
+                  style: logoBase.copyWith(color: const Color(0xFFFF4A4A)),
+                ),
               ],
             ),
           ),
@@ -46,7 +55,7 @@ class BcAppBar extends StatelessWidget implements PreferredSizeWidget {
                 child: Container(
                   height: 34,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color(0xFFF3F3F6),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 12),

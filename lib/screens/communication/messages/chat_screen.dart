@@ -65,11 +65,7 @@ class _ChatScreenState extends State<ChatScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // Scroll to bottom (newest message) after sending
         if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         }
       });
     } catch (e) {
@@ -113,10 +109,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 final messages = snapshot.data ?? [];
                 if (messages.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Text(
                       'Start a conversation',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w400,
+                          ),
                     ),
                   );
                 }
@@ -200,7 +199,10 @@ class _MessageBubble extends StatelessWidget {
         ),
         child: Text(
           message.content,
-          style: TextStyle(color: isMe ? Colors.white : Colors.black),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: isMe ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w400,
+              ),
         ),
       ),
     );

@@ -184,8 +184,10 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                   const Text('Provided by Artist',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('Description from ${widget.artistName}',
-                      style: const TextStyle(fontSize: 14)),
+                  Text(
+                    'Description from ${widget.artistName}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                   const SizedBox(height: 8),
                   const Text('Starting Price: ₱300.00',
                       style: TextStyle(

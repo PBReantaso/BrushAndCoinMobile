@@ -26,11 +26,10 @@ class StoryBubble extends StatelessWidget {
               backgroundColor: const Color(0xFFBDBDBD),
               child: Text(
                 initials,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
               ),
             ),
             const SizedBox(height: 7),

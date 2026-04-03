@@ -5,6 +5,7 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F4),
       appBar: AppBar(
@@ -44,19 +45,21 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Success!',
-                style: TextStyle(
-                  color: Color(0xFFD32F2F),
-                  fontSize: 32,
+                style: t.headlineMedium?.copyWith(
+                  color: const Color(0xFFD32F2F),
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Your payment was successful.\nThe receipt for the commission has been sent to your email.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, height: 1.4, color: Color(0xFF5A5A5A)),
+                style: t.bodyLarge?.copyWith(
+                  height: 1.4,
+                  color: const Color(0xFF5A5A5A),
+                ),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -70,7 +73,10 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
-                  child: const Text('Go back', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: Text(
+                    'Go back',
+                    style: t.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],

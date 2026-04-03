@@ -100,8 +100,8 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 6),
-              const Text('What is your', style: AuthTextStyles.headlineRed),
-              const Text('role?', style: AuthTextStyles.headlineBlack),
+              Text('What is your', style: AuthTextStyles.headlineRed),
+              Text('role?', style: AuthTextStyles.headlineBlack),
               const SizedBox(height: 10),
               _RoleIllustration(role: _role),
               const SizedBox(height: 8),
@@ -116,20 +116,18 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
                       children: [
                         Text(
                           _role == UserRole.patron ? 'Are you a...' : 'Or an...',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: Colors.black54),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _role == UserRole.patron ? 'Patron' : 'Artist',
-                          style: const TextStyle(
-                            fontSize: 30,
-                            height: 1.05,
-                            fontWeight: FontWeight.w800,
-                            color: AuthColors.primaryRed,
-                          ),
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                height: 1.05,
+                                color: AuthColors.primaryRed,
+                              ),
                         ),
                       ],
                     ),
@@ -141,7 +139,7 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-              const Text('Username', style: AuthTextStyles.fieldLabel),
+              Text('Username', style: AuthTextStyles.fieldLabel),
               const SizedBox(height: 6),
               TextField(
                 controller: _usernameController,
@@ -154,7 +152,7 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('First Name', style: AuthTextStyles.fieldLabel),
+                        Text('First Name', style: AuthTextStyles.fieldLabel),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _firstNameController,
@@ -168,7 +166,7 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Last Name', style: AuthTextStyles.fieldLabel),
+                        Text('Last Name', style: AuthTextStyles.fieldLabel),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _lastNameController,
@@ -186,7 +184,7 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Number', style: AuthTextStyles.fieldLabel),
+                        Text('Number', style: AuthTextStyles.fieldLabel),
                         const SizedBox(height: 6),
                         Row(
                           children: [
@@ -217,7 +215,7 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Birthday', style: AuthTextStyles.fieldLabel),
+                        Text('Birthday', style: AuthTextStyles.fieldLabel),
                         const SizedBox(height: 6),
                         InkWell(
                           borderRadius: BorderRadius.circular(10),
@@ -238,7 +236,7 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              const Text('Gender', style: AuthTextStyles.fieldLabel),
+              Text('Gender', style: AuthTextStyles.fieldLabel),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
@@ -353,7 +351,10 @@ class _GenderChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(fontSize: 12, color: fg, fontWeight: FontWeight.w600),
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: fg, fontWeight: FontWeight.w600),
         ),
       ),
     );

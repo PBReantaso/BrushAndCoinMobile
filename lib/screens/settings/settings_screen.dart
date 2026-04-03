@@ -27,6 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final accent = const Color(0xFFFF4A4A);
+    final t = Theme.of(context).textTheme;
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F6),
       appBar: AppBar(
@@ -38,10 +39,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           icon: const Icon(Icons.arrow_back),
           color: Colors.black,
         ),
-        title: const Text(
+        title: Text(
           'Settings',
-          style: TextStyle(
-            fontSize: 22,
+          style: t.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
             letterSpacing: 0.2,
           ),
@@ -240,6 +240,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: EdgeInsets.only(bottom: viewInsets),
           child: StatefulBuilder(
             builder: (context, setLocalState) {
+              final sheetT = Theme.of(context).textTheme;
               return Container(
                 decoration: const BoxDecoration(
                   color: Colors.white,
@@ -254,10 +255,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Delete Account',
-                          style: TextStyle(
-                            fontSize: 18,
+                          style: sheetT.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -404,12 +404,11 @@ void _showTermsOfService(BuildContext context) {
                     icon: const Icon(Icons.arrow_back),
                   ),
                   const SizedBox(width: 4),
-                  const Text(
+                  Text(
                     'Terms of Service',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
                 ],
               ),
@@ -455,12 +454,11 @@ void _showPrivacyPolicy(BuildContext context) {
                     icon: const Icon(Icons.arrow_back),
                   ),
                   const SizedBox(width: 4),
-                  const Text(
+                  Text(
                     'Privacy Policy',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
                 ],
               ),
@@ -487,111 +485,106 @@ class _TermsOfServiceContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
+      children: [
         Text(
           'TERMS OF SERVICE',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
+          style: t.titleMedium?.copyWith(fontWeight: FontWeight.w900),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           'Brush&Coin: A Mobile Commission Platform for Independent Artists in Secure and Community-Based Art Commerce',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
-        SizedBox(height: 16),
-        _TosSection(
+        const SizedBox(height: 16),
+        const _TosSection(
           heading: '1. Acceptance of Terms',
           body:
               'By accessing, downloading, installing, or using the Brush&Coin mobile application (“the Service”), you acknowledge that you have read, understood, and agreed to be bound by these Terms of Service. These terms constitute a legally binding agreement between you (“the User”) and the developers of Brush&Coin. If you do not agree with any part of these terms, you must discontinue use of the Service immediately. Continued use of the Service after any updates or modifications shall constitute your acceptance of the revised Terms of Service.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '2. Description of the Service',
           body:
               'Brush&Coin is a mobile-first digital platform designed to connect independent artists and clients by providing tools for portfolio presentation, commission-based transactions, messaging, tipping, and local artist discovery. The Service acts solely as an intermediary platform that facilitates interactions and transactions between users. Brush&Coin does not create, sell, or deliver artworks and does not act as a party to any agreement formed between users. All transactions, agreements, and interactions are conducted at the discretion and responsibility of the users involved.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '3. Eligibility and User Accounts',
           body:
               'To use the Service, users must register for an account and provide accurate, complete, and up-to-date information. By creating an account, you represent that you are legally capable of entering into a binding agreement under applicable laws. Users are responsible for maintaining the confidentiality of their login credentials and for all activities conducted under their accounts. Brush&Coin shall not be liable for any loss or damage resulting from unauthorized access to user accounts. The platform reserves the right to suspend or terminate accounts that contain false information or violate these Terms of Service.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '4. Use of the Service',
           body:
               'Users agree to use the Service only for lawful purposes and in accordance with these Terms. The platform provides features such as commission requests, payment facilitation, messaging, event listings, and content sharing. Users must not misuse these features or attempt to exploit the platform in ways that could harm other users or the integrity of the Service. Brush&Coin reserves the right to monitor usage patterns and restrict access to features when misuse or abuse is detected.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '5. Artist and Client Responsibilities',
           body:
               'Users may participate as artists, clients, or both, and are expected to uphold professionalism and integrity in all interactions. Artists are responsible for accurately presenting their work, pricing, and commission terms, as well as delivering agreed outputs within the specified timeframe. Clients are responsible for providing clear commission requirements, honoring agreed payments, and maintaining respectful communication. Both parties acknowledge that commission agreements are formed independently between users and that Brush&Coin does not enforce or guarantee fulfillment of such agreements.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '6. Payments and Financial Transactions',
           body:
               'The Service may integrate or simulate payment systems using third-party providers such as GCash, PayMaya, PayPal, or Stripe. By using these features, users agree to comply with the terms and policies of the respective payment providers. Brush&Coin may implement an escrow-style mechanism to temporarily hold funds until agreed conditions are met; however, this system may be simulated and does not constitute a formally regulated financial service. The platform is not responsible for transaction failures, delays, or disputes arising from third-party payment systems.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '7. Commissions, Escrow, and Disputes',
           body:
               'Commission transactions conducted through the Service may involve milestone-based agreements where funds are released upon approval of completed work. Users are responsible for clearly defining terms such as deliverables, timelines, revisions, and payment structure before entering into a commission. In the event of disputes, Brush&Coin may provide mediation support; however, the platform does not guarantee resolution outcomes and is not legally liable for conflicts between users. All parties agree to attempt to resolve disputes in good faith.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '8. Refunds and Cancellations',
           body:
               'Refunds and cancellations are subject to the agreement established between the artist and the client prior to the transaction. The platform does not impose a universal refund policy and does not guarantee reimbursement. Users are encouraged to clearly define refund terms within their commission agreements. Brush&Coin may assist in facilitating communication during disputes but is not obligated to enforce refund decisions.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '9. Intellectual Property',
           body:
               'All intellectual property rights remain with the original creator unless explicitly transferred through a written agreement. Clients are granted only the rights specified in the commission agreement and may not reproduce or distribute the work beyond those terms. Users must ensure that all content uploaded to the Service is original or properly authorized. Brush&Coin reserves the right to remove content that violates intellectual property laws or infringes upon the rights of others.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '10. User Content and Conduct',
           body:
               'Users may upload and share content within the Service, including artwork, descriptions, and messages. By submitting content, users grant Brush&Coin a limited, non-exclusive license to display and use such content for platform operations. Users agree not to upload content that is illegal, offensive, misleading, or harmful. The platform reserves the right to remove content and take action against users who violate these standards without prior notice.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '11. Privacy and Data Usage',
           body:
               'The Service collects and processes user data necessary for functionality, including account management, communication, and transaction facilitation. By using the Service, users consent to the collection and use of their data in accordance with applicable data protection laws. While Brush&Coin implements reasonable security measures, it does not guarantee absolute protection against unauthorized access or breaches.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '12. Prohibited Activities',
           body:
               'Users agree not to engage in activities that compromise the integrity of the Service, including fraud, impersonation, harassment, unauthorized transactions, or attempts to bypass system safeguards. Any violation may result in suspension or permanent termination of the user’s account. Brush&Coin reserves the right to take appropriate legal action where necessary.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '13. Service Availability and Modifications',
           body:
               'Brush&Coin reserves the right to modify, suspend, or discontinue any aspect of the Service at any time without prior notice. The platform does not guarantee uninterrupted or error-free operation. Users acknowledge that features may change as part of ongoing development and improvement.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '14. Limitation of Liability',
           body:
               'To the fullest extent permitted by law, Brush&Coin shall not be held liable for any damages arising from the use or inability to use the Service, including but not limited to financial loss, data loss, or disputes between users. The Service is provided on an “as is” and “as available” basis without warranties of any kind.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '15. Termination',
           body:
               'Brush&Coin reserves the right to suspend or terminate user access to the Service at its discretion, particularly in cases of violations of these Terms of Service or actions deemed harmful to the platform or its users. Upon termination, users must cease all use of the Service.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '16. Governing Law',
           body:
               'These Terms of Service shall be governed by and interpreted in accordance with the laws of the Republic of the Philippines. Any disputes arising from these terms shall be subject to the jurisdiction of the appropriate courts within the Philippines.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '17. Contact Information',
           body:
               'For questions, concerns, or clarifications regarding these Terms of Service, users may contact the Brush&Coin development team through the official communication channels provided within the application.',
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -602,86 +595,81 @@ class _PrivacyPolicyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
+      children: [
         Text(
           'PRIVACY POLICY',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
+          style: t.titleMedium?.copyWith(fontWeight: FontWeight.w900),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           'Brush&Coin: A Mobile Commission Platform for Independent Artists in Secure and Community-Based Art Commerce',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
-        SizedBox(height: 16),
-        _TosSection(
+        const SizedBox(height: 16),
+        const _TosSection(
           heading: '1. Introduction',
           body:
               'Brush&Coin (“the Application”) is committed to protecting the privacy and personal data of its users. This Privacy Policy explains how user information is collected, used, stored, and protected when accessing or using the Application. By using Brush&Coin, you consent to the practices described in this policy. This policy is designed in accordance with applicable data protection laws, including the Data Privacy Act of 2012 (Republic Act No. 10173) of the Philippines.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '2. Information We Collect',
           body:
               'The Application collects personal and non-personal information necessary to provide its services effectively. Personal information may include, but is not limited to, your name, email address, username, profile details, and any other information voluntarily provided during account registration or profile creation. In addition, transactional data such as commission details, payment references, and communication records between users may be collected to facilitate platform functionality. The Application may also collect device-related information such as IP address, device type, operating system, and usage data to improve system performance and user experience.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '3. How We Use Information',
           body:
               'The information collected is used to operate, maintain, and improve the Application’s services. This includes facilitating user authentication, enabling communication between artists and clients, processing transactions, managing commissions, and providing customer support. Data may also be used for analytics purposes to understand user behavior, enhance features, and improve overall system performance. Brush&Coin may use certain information to send notifications, updates, or important service-related announcements.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '4. Sharing and Disclosure of Information',
           body:
               'Brush&Coin does not sell or rent user personal data to third parties. However, user information may be shared with trusted third-party service providers, such as payment processors, solely for the purpose of facilitating transactions and delivering core functionalities of the Application. These third parties are required to maintain the confidentiality and security of user data. Information may also be disclosed if required by law, regulation, or legal process, or if necessary to protect the rights, safety, and integrity of the platform and its users.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '5. Data Storage and Security',
           body:
               'The Application implements reasonable administrative, technical, and physical security measures to protect user data against unauthorized access, alteration, disclosure, or destruction. Data may be stored on secure servers and protected using encryption and authentication protocols. While Brush&Coin strives to safeguard user information, no system can guarantee absolute security, and users acknowledge that they provide information at their own risk.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '6. User Rights',
           body:
               'Users have the right to access, update, correct, or request deletion of their personal data, subject to applicable legal and contractual obligations. Users may also withdraw consent for data processing where applicable, although doing so may affect their ability to use certain features of the Application. Requests related to personal data may be submitted through the platform’s official communication channels.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '7. Cookies and Tracking Technologies',
           body:
               'The Application may use cookies or similar tracking technologies to enhance user experience, remember preferences, and analyze usage patterns. These technologies help improve system functionality and provide personalized features. Users may manage or disable such technologies through their device settings, although this may limit certain functionalities of the Application.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '8. Data Retention',
           body:
               'Brush&Coin retains user information only for as long as necessary to fulfill the purposes outlined in this Privacy Policy, comply with legal obligations, resolve disputes, and enforce agreements. When data is no longer required, reasonable steps will be taken to securely delete or anonymize it.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '9. Third-Party Links and Services',
           body:
               'The Application may contain links to third-party services or integrate external platforms such as payment gateways. Brush&Coin is not responsible for the privacy practices or content of these third-party services. Users are encouraged to review the privacy policies of any external platforms they interact with.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '10. Children’s Privacy',
           body:
               'The Application is not intended for use by individuals who are not legally capable of entering into a binding agreement under applicable laws. Brush&Coin does not knowingly collect personal information from minors without appropriate consent. If such data is identified, it will be promptly removed.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '11. Changes to the Privacy Policy',
           body:
               'Brush&Coin reserves the right to update or modify this Privacy Policy at any time. Any changes will be reflected within the Application, and continued use of the Service after such updates constitutes acceptance of the revised policy. Users are encouraged to review this Privacy Policy periodically.',
         ),
-        _TosSection(
+        const _TosSection(
           heading: '12. Contact Information',
           body:
               'For questions, concerns, or requests regarding this Privacy Policy or the handling of personal data, users may contact the Brush&Coin development team through the official communication channels provided within the Application.',
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -705,18 +693,16 @@ class _TosSection extends StatelessWidget {
         children: [
           Text(
             heading,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             body,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.4,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  height: 1.4,
+                ),
           ),
         ],
       ),
@@ -740,6 +726,7 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -751,9 +738,8 @@ class _Section extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: TextStyle(
+                style: t.titleSmall?.copyWith(
                   color: accentColor,
-                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -786,6 +772,7 @@ class _ToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const subtitleColor = Color(0xFF9B9B9F);
+    final t = Theme.of(context).textTheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -801,19 +788,13 @@ class _ToggleRow extends StatelessWidget {
         secondary: Icon(icon, color: iconColor),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
+          style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         subtitle: subtitle.isEmpty
             ? null
             : Text(
                 subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: subtitleColor,
-                ),
+                style: t.bodySmall?.copyWith(color: subtitleColor),
               ),
       ),
     );
@@ -838,6 +819,7 @@ class _ChevronRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const subtitleColor = Color(0xFF9B9B9F);
+    final t = Theme.of(context).textTheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -848,19 +830,13 @@ class _ChevronRow extends StatelessWidget {
         leading: Icon(icon, color: iconColor),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
+          style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         subtitle: subtitle.isEmpty
             ? null
             : Text(
                 subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: subtitleColor,
-                ),
+                style: t.bodySmall?.copyWith(color: subtitleColor),
               ),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
@@ -904,10 +880,9 @@ class _DangerButton extends StatelessWidget {
             )
           : Text(
               label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
       onPressed: isLoading ? null : onPressed,
     );

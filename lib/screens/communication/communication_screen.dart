@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/content_spacing.dart';
 import '../../widgets/common/bc_app_bar.dart';
 import './commissions/commissions_screen.dart';
 import './messages/messages_screen.dart';
@@ -25,7 +26,12 @@ class _CommunicationScreenState extends State<CommunicationScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                8 + kContentBelowAppBarPadding,
+                16,
+                0,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -92,11 +98,10 @@ class _TabButton extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: textColor,
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
             ],
           ),

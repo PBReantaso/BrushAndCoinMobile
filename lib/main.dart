@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 import 'navigation/app_route_observer.dart';
+import 'theme/app_typography.dart';
+import 'theme/no_animations.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_role_screen.dart';
 import 'screens/auth/signup_screen.dart';
@@ -39,17 +41,47 @@ class BrushAndCoinApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = buildAppTextTheme();
     return AppProfileScope(
       notifier: AppProfileState(),
       child: MaterialApp(
         title: 'Brush&Coin',
         debugShowCheckedModeBanner: false,
         scrollBehavior: const NoStretchScrollBehavior(),
+        themeAnimationStyle: AnimationStyle.noAnimation,
+        builder: (context, child) {
+          return child ?? const SizedBox.shrink();
+        },
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF6750A4),
           ),
           scaffoldBackgroundColor: const Color(0xFFF3F3F6),
+          textTheme: textTheme,
+          appBarTheme: AppBarTheme(
+            backgroundColor: const Color(0xFFFFFFFF),
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            titleTextStyle: textTheme.titleLarge,
+            iconTheme: const IconThemeData(color: Color(0xFF1F1F24)),
+            foregroundColor: const Color(0xFF1F1F24),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            hintStyle: textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF7C7C85),
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          snackBarTheme: SnackBarThemeData(
+            backgroundColor: const Color(0xFFFFFFFF),
+            contentTextStyle: textTheme.bodyMedium?.copyWith(color: const Color(0xFF222222)),
+            actionTextColor: const Color(0xFFFF4A4A),
+            elevation: 2,
+            behavior: SnackBarBehavior.floating,
+          ),
+          pageTransitionsTheme: buildNoPageTransitionsTheme(),
+          splashFactory: NoSplash.splashFactory,
           navigationBarTheme: NavigationBarThemeData(
             overlayColor: WidgetStateProperty.all(Colors.transparent),
             iconTheme: WidgetStateProperty.resolveWith((states) {
@@ -57,6 +89,14 @@ class BrushAndCoinApp extends StatelessWidget {
               return IconThemeData(
                 color: isSelected ? const Color(0xFFFF4A4A) : const Color(0xFF222222),
                 size: 22,
+              );
+            }),
+            backgroundColor: const Color(0xFFFFFFFF),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final isSelected = states.contains(WidgetState.selected);
+              return (textTheme.bodySmall ?? const TextStyle()).copyWith(
+                color: const Color(0xFF222222),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               );
             }),
           ),
@@ -69,8 +109,6 @@ class BrushAndCoinApp extends StatelessWidget {
           '/signup': (_) => const SignUpScreen(),
           '/onboarding': (_) => const OnboardingRoleScreen(),
           '/settings': (_) => const SettingsScreen(),
-          '/create_event': (_) => const CreateEventScreen(),
-          '/create_post': (_) => const CreatePostScreen(),
           '/app': (_) => const MainShell(),
         },
       ),
@@ -116,7 +154,7 @@ class _MainShellState extends State<MainShell> {
                 child: FloatingActionButton(
                   onPressed: () async {
                     if (_currentIndex == 0) {
-                      final created = await Navigator.of(context).pushNamed('/create_post');
+                      final created = await showCreatePostBottomSheet(context);
                       if (created == true && mounted) {
                         setState(() {
                           _homeRefreshTick++;
@@ -125,7 +163,7 @@ class _MainShellState extends State<MainShell> {
                       return;
                     }
                     if (_currentIndex == 1) {
-                      final created = await Navigator.of(context).pushNamed('/create_event');
+                      final created = await showCreateEventBottomSheet(context);
                       if (created == true && mounted) {
                         setState(() {
                           _calendarRefreshTick++;
@@ -144,17 +182,10 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFFEDEDF1),
+        animationDuration: Duration.zero,
+        backgroundColor: const Color(0xFFFFFFFF),
         indicatorColor: Colors.transparent,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          final isSelected = states.contains(WidgetState.selected);
-          return TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: const Color(0xFF222222),
-          );
-        }),
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {

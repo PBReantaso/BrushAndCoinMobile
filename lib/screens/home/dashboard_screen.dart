@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
+import '../search/tagged_posts_screen.dart';
+import '../../theme/content_spacing.dart';
 import '../../widgets/common/bc_app_bar.dart';
 import '../../widgets/home/feed_post_card.dart';
 
@@ -85,6 +87,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SliverToBoxAdapter(
                 child: Divider(height: 1, color: Color(0xFFD8D8DE)),
               ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: kContentBelowAppBarPadding),
+              ),
               SliverList.separated(
                 itemCount: _posts.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -95,6 +100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     authorUserId: p.userId,
                     author: p.authorName.isEmpty ? 'Brush&Coin' : p.authorName,
                     subtitle: p.createdAtText,
+                    category: p.category,
                     title: p.title.isEmpty ? 'Untitled Post' : p.title,
                     description: p.description,
                     tags: p.tags,
@@ -104,6 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     likedByMe: p.likedByMe,
                     onLikeTap: () => _toggleLike(p),
                     onCommentTap: () => _commentOnPost(p),
+                    onTagTap: (tag) => _openTag(tag),
                   );
                 },
               ),
@@ -169,6 +176,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .map((p) => p.id == postId ? mapper(p) : p)
           .toList(growable: false);
     });
+  }
+
+  void _openTag(String tag) {
+    final q = tag.trim().replaceFirst(RegExp(r'^#'), '');
+    if (q.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TaggedPostsScreen(initialTag: q),
+      ),
+    );
   }
 }
 
@@ -267,9 +284,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Comments',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
             const SizedBox(height: 10),
             const Divider(height: 1),
@@ -313,28 +332,27 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                               children: [
                                                 Text(
                                                   c.authorName,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Color(0xFF1A1A1E),
-                                                  ),
+                                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                        fontWeight: FontWeight.w700,
+                                                        color: const Color(0xFF1A1A1E),
+                                                      ),
                                                 ),
                                                 const SizedBox(width: 8),
                                                 Text(
                                                   c.timeAgo,
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Color(0xFF7A7A82),
-                                                  ),
+                                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                        color: const Color(0xFF7A7A82),
+                                                        fontWeight: FontWeight.w400,
+                                                      ),
                                                 ),
                                               ],
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               c.comment,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Color(0xFF2F2F36),
-                                              ),
+                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                    color: const Color(0xFF2F2F36),
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -431,6 +449,7 @@ class _FeedPost {
   final String authorName;
   final String title;
   final String description;
+  final String category;
   final List<String> tags;
   final String? imageUrl;
   final String createdAtText;
@@ -444,6 +463,7 @@ class _FeedPost {
     required this.authorName,
     required this.title,
     required this.description,
+    required this.category,
     required this.tags,
     required this.imageUrl,
     required this.createdAtText,
@@ -461,6 +481,7 @@ class _FeedPost {
       authorName: (json['authorName'] as String?) ?? '',
       title: (json['title'] as String?) ?? '',
       description: (json['description'] as String?) ?? '',
+      category: (json['category'] as String?)?.trim() ?? '',
       tags: tags,
       imageUrl: json['imageUrl'] as String?,
       createdAtText: _formatCreatedAt((json['createdAt'] as String?) ?? ''),
@@ -474,6 +495,7 @@ class _FeedPost {
     String? authorName,
     String? title,
     String? description,
+    String? category,
     List<String>? tags,
     String? imageUrl,
     String? createdAtText,
@@ -487,6 +509,7 @@ class _FeedPost {
       authorName: authorName ?? this.authorName,
       title: title ?? this.title,
       description: description ?? this.description,
+      category: category ?? this.category,
       tags: tags ?? this.tags,
       imageUrl: imageUrl ?? this.imageUrl,
       createdAtText: createdAtText ?? this.createdAtText,

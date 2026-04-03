@@ -92,6 +92,9 @@ class _FollowConnectionsSheetState extends State<_FollowConnectionsSheet>
   Widget build(BuildContext context) {
     final height = MediaQuery.sizeOf(context).height * 0.88;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final t = Theme.of(context).textTheme;
+    final tabLabelStyle =
+        t.titleSmall?.copyWith(fontWeight: FontWeight.w600);
 
     return Container(
       height: height,
@@ -127,8 +130,7 @@ class _FollowConnectionsSheetState extends State<_FollowConnectionsSheet>
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: t.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: _igBlack,
                     ),
@@ -145,8 +147,8 @@ class _FollowConnectionsSheetState extends State<_FollowConnectionsSheet>
             unselectedLabelColor: _igGray,
             indicatorColor: _igBlack,
             indicatorWeight: 1,
-            labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            labelStyle: tabLabelStyle,
+            unselectedLabelStyle: tabLabelStyle,
             tabs: const [
               Tab(text: 'Followers'),
               Tab(text: 'Following'),
@@ -247,7 +249,9 @@ class _FollowUserList extends StatelessWidget {
           return Center(
             child: Text(
               emptyMessage,
-              style: const TextStyle(color: Color(0xFF8E8E8E), fontSize: 14),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF8E8E8E),
+                  ),
             ),
           );
         }
@@ -275,22 +279,20 @@ class _FollowUserList extends StatelessWidget {
                         backgroundColor: const Color(0xFFDBDBDB),
                         child: Text(
                           name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF262626),
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF262626),
+                              ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           name,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF262626),
-                          ),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF262626),
+                              ),
                         ),
                       ),
                     ],

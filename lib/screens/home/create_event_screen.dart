@@ -10,8 +10,32 @@ import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../services/api_client.dart';
 
+/// Opens add-event as a modal [showModalBottomSheet] (~full height).
+Future<bool?> showCreateEventBottomSheet(BuildContext context) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      final height = MediaQuery.sizeOf(sheetContext).height * 0.92;
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: SizedBox(
+          height: height,
+          child: const CreateEventScreen(asBottomSheet: true),
+        ),
+      );
+    },
+  );
+}
+
 class CreateEventScreen extends StatefulWidget {
-  const CreateEventScreen({super.key});
+  const CreateEventScreen({super.key, this.asBottomSheet = false});
+
+  /// When true, renders sheet chrome (handle, close) instead of a [Scaffold] + [AppBar].
+  final bool asBottomSheet;
 
   @override
   State<CreateEventScreen> createState() => _CreateEventScreenState();
@@ -55,185 +79,243 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     final dateLabel = '${_date.month}/${_date.day}/${_date.year}';
     final timeLabel = _time.format(context);
 
+    final listView = ListView(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      children: [
+        _ImageUploadBox(
+          imageFile: _eventImageFile,
+          isPicking: _isPickingImage,
+          onTap: _pickEventImage,
+        ),
+        const SizedBox(height: 16),
+        _LabeledTextField(
+          label: 'Event Title',
+          controller: _titleController,
+          hint: 'Enter event title',
+          accentLabel: true,
+        ),
+        const SizedBox(height: 12),
+        _CategoryDropdown(
+          value: _category,
+          onChanged: (v) => setState(() => _category = v),
+        ),
+        const SizedBox(height: 12),
+        _DateTimeRow(
+          dateLabel: dateLabel,
+          timeLabel: timeLabel,
+          onPickDate: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _date,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) setState(() => _date = picked);
+          },
+          onPickTime: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: _time,
+            );
+            if (picked != null) setState(() => _time = picked);
+          },
+        ),
+        const SizedBox(height: 12),
+        _ScheduleCard(
+          activities: _activities,
+          onAddActivity: _showAddScheduleDialog,
+        ),
+        const SizedBox(height: 12),
+        _LabeledTextField(
+          label: 'Venue',
+          controller: _venueController,
+          hint: 'Enter venue',
+          accentLabel: true,
+        ),
+        const SizedBox(height: 12),
+        _LocationCard(
+          controller: _locationController,
+          onLocationChanged: (point) => _selectedLocationPoint = point,
+        ),
+        const SizedBox(height: 12),
+        _LabeledTextField(
+          label: 'Description',
+          controller: _descriptionController,
+          hint: 'Enter description',
+          minLines: 4,
+          accentLabel: true,
+        ),
+        const SizedBox(height: 12),
+        _LabeledTextField(
+          label: 'Additional Info (Optional)',
+          controller: _additionalInfoController,
+          hint: 'Any extra details',
+          minLines: 3,
+          accentLabel: false,
+        ),
+      ],
+    );
+
+    final bottomInset =
+        widget.asBottomSheet ? MediaQuery.paddingOf(context).bottom : 0.0;
+    final bottomButton = Padding(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 18 + bottomInset),
+      child: SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFFF4A4A),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: _isCreating
+              ? null
+              : () async {
+                  final title = _titleController.text.trim();
+                  if (title.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Event title is required.')),
+                    );
+                    return;
+                  }
+                  setState(() => _isCreating = true);
+                  try {
+                    final eventDate = _date.toIso8601String().split('T').first;
+                    final hh = _time.hour.toString().padLeft(2, '0');
+                    final mm = _time.minute.toString().padLeft(2, '0');
+                    final eventTime = '$hh:$mm';
+                    await _apiClient.createEvent(
+                      title: title,
+                      category: _category,
+                      eventDate: eventDate,
+                      eventTime: eventTime,
+                      venue: _venueController.text.trim(),
+                      locationText: _locationController.text.trim(),
+                      latitude: _selectedLocationPoint?.latitude,
+                      longitude: _selectedLocationPoint?.longitude,
+                      description: _descriptionController.text.trim(),
+                      additionalInfo: _additionalInfoController.text.trim(),
+                      schedules: _activities
+                          .map(
+                            (a) => {
+                              'name': a.title,
+                              'time': a.timeLabel,
+                              'description': a.description,
+                            },
+                          )
+                          .toList(),
+                      imageUrl: _eventImageFile?.path,
+                    );
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Event created successfully.')),
+                    );
+                    Navigator.of(context).pop(true);
+                  } on ApiException catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(e.message)));
+                  } catch (_) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Unable to create event.')),
+                    );
+                  } finally {
+                    if (mounted) setState(() => _isCreating = false);
+                  }
+                },
+          child: _isCreating
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Create Event'),
+        ),
+      ),
+    );
+
+    final formBody = Column(
+      children: [
+        Expanded(
+          child: SafeArea(
+            top: false,
+            child: listView,
+          ),
+        ),
+        bottomButton,
+      ],
+    );
+
+    if (widget.asBottomSheet) {
+      return Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 8),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC7C7C7),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.close, color: Color(0xFF1F1F24)),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Add Event',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(child: formBody),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Add Event',
-          style: TextStyle(fontWeight: FontWeight.w900),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SafeArea(
-              top: false,
-              child: ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-                children: [
-                  _ImageUploadBox(
-                    imageFile: _eventImageFile,
-                    isPicking: _isPickingImage,
-                    onTap: _pickEventImage,
-                  ),
-                  const SizedBox(height: 16),
-                  _LabeledTextField(
-                    label: 'Event Title',
-                    controller: _titleController,
-                    hint: 'Enter event title',
-                    accentLabel: true,
-                  ),
-                  const SizedBox(height: 12),
-                  _CategoryDropdown(
-                    value: _category,
-                    onChanged: (v) => setState(() => _category = v),
-                  ),
-                  const SizedBox(height: 12),
-                  _DateTimeRow(
-                    dateLabel: dateLabel,
-                    timeLabel: timeLabel,
-                    onPickDate: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _date,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) setState(() => _date = picked);
-                    },
-                    onPickTime: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: _time,
-                      );
-                      if (picked != null) setState(() => _time = picked);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _ScheduleCard(
-                    activities: _activities,
-                    onAddActivity: _showAddScheduleDialog,
-                  ),
-                  const SizedBox(height: 12),
-                  _LabeledTextField(
-                    label: 'Venue',
-                    controller: _venueController,
-                    hint: 'Enter venue',
-                    accentLabel: true,
-                  ),
-                  const SizedBox(height: 12),
-                  _LocationCard(
-                    controller: _locationController,
-                    onLocationChanged: (point) => _selectedLocationPoint = point,
-                  ),
-                  const SizedBox(height: 12),
-                  _LabeledTextField(
-                    label: 'Description',
-                    controller: _descriptionController,
-                    hint: 'Enter description',
-                    minLines: 4,
-                    accentLabel: true,
-                  ),
-                  const SizedBox(height: 12),
-                  _LabeledTextField(
-                    label: 'Additional Info (Optional)',
-                    controller: _additionalInfoController,
-                    hint: 'Any extra details',
-                    minLines: 3,
-                    accentLabel: false,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF4A4A),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: _isCreating
-                    ? null
-                    : () async {
-                        final title = _titleController.text.trim();
-                        if (title.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Event title is required.')),
-                          );
-                          return;
-                        }
-                        setState(() => _isCreating = true);
-                        try {
-                          final eventDate = _date.toIso8601String().split('T').first;
-                          final hh = _time.hour.toString().padLeft(2, '0');
-                          final mm = _time.minute.toString().padLeft(2, '0');
-                          final eventTime = '$hh:$mm';
-                          await _apiClient.createEvent(
-                            title: title,
-                            category: _category,
-                            eventDate: eventDate,
-                            eventTime: eventTime,
-                            venue: _venueController.text.trim(),
-                            locationText: _locationController.text.trim(),
-                            latitude: _selectedLocationPoint?.latitude,
-                            longitude: _selectedLocationPoint?.longitude,
-                            description: _descriptionController.text.trim(),
-                            additionalInfo: _additionalInfoController.text.trim(),
-                            schedules: _activities
-                                .map(
-                                  (a) => {
-                                    'name': a.title,
-                                    'time': a.timeLabel,
-                                    'description': a.description,
-                                  },
-                                )
-                                .toList(),
-                            imageUrl: _eventImageFile?.path,
-                          );
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Event created successfully.')),
-                          );
-                          Navigator.of(context).pop(true);
-                        } on ApiException catch (e) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text(e.message)));
-                        } catch (_) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Unable to create event.')),
-                          );
-                        } finally {
-                          if (mounted) setState(() => _isCreating = false);
-                        }
-                      },
-                child: _isCreating
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Create Event'),
-              ),
-            ),
-          ),
-        ],
-      ),
+      body: formBody,
     );
   }
 
@@ -250,6 +332,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setLocalState) {
+            final sheetT = Theme.of(context).textTheme;
             final bottom = MediaQuery.of(ctx).viewInsets.bottom;
             return Padding(
               padding: EdgeInsets.only(bottom: bottom),
@@ -263,10 +346,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Add Event Schedule',
-                      style: TextStyle(
-                        fontSize: 18,
+                      style: sheetT.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -303,17 +385,18 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Text(
+                            Text(
                               'What time is the event',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6D6D72),
+                              style: sheetT.bodySmall?.copyWith(
+                                color: const Color(0xFF6D6D72),
                               ),
                             ),
                             const Spacer(),
                             Text(
                               selectedTime.format(ctx),
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style: sheetT.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ],
                         ),
@@ -335,9 +418,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       const SizedBox(height: 8),
                       Text(
                         error!,
-                        style: const TextStyle(
+                        style: sheetT.bodySmall?.copyWith(
                           color: Colors.red,
-                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -499,24 +581,25 @@ class _ImageUploadBox extends StatelessWidget {
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Column(
+                      : Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_photo_alternate_outlined,
+                            const Icon(Icons.add_photo_alternate_outlined,
                                 color: Color(0xFFFF4A4A), size: 34),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
                               'Click to upload',
-                              style: TextStyle(
-                                color: Color(0xFF7B7B82),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    color: const Color(0xFF7B7B82),
+                                    fontWeight: FontWeight.w700,
+                                  ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               'PNG/JPG up to 5MB',
-                              style: TextStyle(color: Color(0xFF9B9B9F), fontSize: 12),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF9B9B9F),
+                                  ),
                             ),
                           ],
                         ),
@@ -530,13 +613,12 @@ class _ImageUploadBox extends StatelessWidget {
                       color: Colors.black.withOpacity(0.6),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Change',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                   ),
                 ),
@@ -700,6 +782,7 @@ class _MiniPickerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -713,7 +796,7 @@ class _MiniPickerCard extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Row(
@@ -721,7 +804,7 @@ class _MiniPickerCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     value,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                    style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -746,6 +829,7 @@ class _ScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -757,9 +841,9 @@ class _ScheduleCard extends StatelessWidget {
         children: [
           Text(
             'Event Schedule',
-            style: const TextStyle(
+            style: t.titleSmall?.copyWith(
               fontWeight: FontWeight.w800,
-              color: Color(0xFFFF4A4A),
+              color: const Color(0xFFFF4A4A),
             ),
           ),
           const SizedBox(height: 8),
@@ -772,11 +856,10 @@ class _ScheduleCard extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Add activities and their times for your event schedule',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8B8B90),
+                    style: t.bodySmall?.copyWith(
+                      color: const Color(0xFF8B8B90),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -792,11 +875,10 @@ class _ScheduleCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (activities.isEmpty)
-            const Text(
+            Text(
               'No schedules yet. Tap + to add one.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF8B8B90),
+              style: t.bodySmall?.copyWith(
+                color: const Color(0xFF8B8B90),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -818,6 +900,7 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -830,9 +913,9 @@ class _ActivityRow extends StatelessWidget {
           Expanded(
             child: Text(
               activity.title,
-              style: const TextStyle(
+              style: t.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF111111),
+                color: const Color(0xFF111111),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -843,8 +926,7 @@ class _ActivityRow extends StatelessWidget {
             children: [
               Text(
                 activity.timeLabel,
-                style: TextStyle(
-                  fontSize: 12,
+                style: t.bodySmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: Colors.black.withOpacity(0.5),
                 ),
@@ -858,9 +940,8 @@ class _ActivityRow extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF7A7A7F),
+                    style: t.labelSmall?.copyWith(
+                      color: const Color(0xFF7A7A7F),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1141,11 +1222,10 @@ class _LocationCardState extends State<_LocationCard> {
           const SizedBox(height: 6),
           Text(
             'Location: $latLabel, $lonLabel',
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.black54,
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ],
       ),

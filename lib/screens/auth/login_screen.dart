@@ -98,6 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -107,10 +108,10 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 6),
-              const Text('Welcome back,', style: AuthTextStyles.headlineRed),
-              const Text('Art Lover!', style: AuthTextStyles.headlineBlack),
+              Text('Welcome back,', style: AuthTextStyles.headlineRed),
+              Text('Art Lover!', style: AuthTextStyles.headlineBlack),
               const SizedBox(height: 26),
-              const Text('Email', style: AuthTextStyles.fieldLabel),
+              Text('Email', style: AuthTextStyles.fieldLabel),
               const SizedBox(height: 6),
               TextField(
                 controller: _emailController,
@@ -120,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text('Password', style: AuthTextStyles.fieldLabel),
+              Text('Password', style: AuthTextStyles.fieldLabel),
               const SizedBox(height: 6),
               TextField(
                 controller: _passwordController,
@@ -164,9 +165,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     'Remember me',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    style: t.bodySmall?.copyWith(color: Colors.black54),
                   ),
                   const Spacer(),
                   TextButton(
@@ -177,10 +178,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     onPressed: () =>
                         _showSnack('Forgot password coming soon'),
-                    child: const Text(
+                    child: Text(
                       'Forgot Password',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: t.bodySmall?.copyWith(
                         color: AuthColors.linkBlue,
                         fontWeight: FontWeight.w600,
                       ),
@@ -209,17 +209,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Text.rich(
                   TextSpan(
                     text: "Don't have an account? ",
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    style: t.bodySmall?.copyWith(color: Colors.black54),
                     children: [
                       WidgetSpan(
                         alignment: PlaceholderAlignment.baseline,
                         baseline: TextBaseline.alphabetic,
                         child: GestureDetector(
                           onTap: () => Navigator.pushNamed(context, '/signup'),
-                          child: const Text(
+                          child: Text(
                             'Sign Up',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: t.bodySmall?.copyWith(
                               color: AuthColors.primaryRed,
                               fontWeight: FontWeight.w700,
                             ),

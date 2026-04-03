@@ -151,8 +151,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           builder: (context) => ChatScreen(conversation: convo),
                         ),
                       );
-                      // Wait a moment for backend to update timestamp, then refresh
-                      await Future.delayed(const Duration(milliseconds: 300));
                       if (mounted) {
                         setState(() {
                           _conversationsFuture = _loadConversations();
@@ -215,22 +213,21 @@ class _ConversationCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    color: Color(0xFF111111),
-                  ),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF111111),
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   snippet,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6E6E6E),
-                    height: 1.2,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF6E6E6E),
+                        height: 1.2,
+                        fontWeight: FontWeight.w400,
+                      ),
                 ),
               ],
             ),
@@ -240,11 +237,10 @@ class _ConversationCard extends StatelessWidget {
             children: [
               Text(
                 dateLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF9B9B9F),
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: const Color(0xFF9B9B9F),
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),

@@ -354,18 +354,10 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 88,
-                      height: 88,
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFFF4A4A), width: 1.2),
-                      ),
-                      child: const CircleAvatar(
-                        backgroundColor: Color(0xFFD8D8DE),
-                        child: Icon(Icons.person, color: Color(0xFF6D6D75), size: 34),
-                      ),
+                    const CircleAvatar(
+                      radius: 44,
+                      backgroundColor: Color(0xFFD8D8DE),
+                      child: Icon(Icons.person, color: Color(0xFF6D6D75), size: 34),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -407,16 +399,17 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                 const SizedBox(height: 10),
                 Text(
                   data.username,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A1A1E),
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1A1A1E),
+                      ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Bio',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF2C2C2C)),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF2C2C2C),
+                      ),
                 ),
                 const SizedBox(height: 10),
                 _buildActionRows(),
@@ -617,16 +610,17 @@ class _Stat extends StatelessWidget {
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1A1A1E),
-          ),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF1A1A1E),
+              ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF6C6C74)),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF6C6C74),
+              ),
         ),
       ],
     );
@@ -666,11 +660,10 @@ class _ProfileTextTab extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: selected ? const Color(0xFFFF3D3D) : const Color(0xFF7B7B84),
-            ),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: selected ? const Color(0xFFFF3D3D) : const Color(0xFF7B7B84),
+                ),
           ),
         ),
       ),

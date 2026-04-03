@@ -62,10 +62,9 @@ class ProjectCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       project.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                   Container(
@@ -77,10 +76,10 @@ class ProjectCard extends StatelessWidget {
                     ),
                     child: Text(
                       statusLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: statusColor(context),
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: statusColor(context),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                 ],

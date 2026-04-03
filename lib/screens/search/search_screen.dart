@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
 import '../../services/recent_searches_storage.dart';
+import 'tagged_posts_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -141,10 +142,13 @@ class _SearchScreenState extends State<SearchScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_recent.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'No recent searches.',
-          style: TextStyle(color: Color(0xFF6C6C74)),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF6C6C74),
+                fontWeight: FontWeight.w400,
+              ),
         ),
       );
     }
@@ -155,13 +159,12 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'Recent',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1E),
-                ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1A1A1E),
+                    ),
               ),
               const Spacer(),
               TextButton(
@@ -219,7 +222,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_searchError != null) {
       return Center(child: Text(_searchError!, textAlign: TextAlign.center));
     }
-    if (_results.isEmpty) {
+    final tag = _normalizedTagQuery;
+    if (_results.isEmpty && tag.isEmpty) {
       return const Center(
         child: Text(
           'No users found.',
@@ -228,10 +232,34 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
     return ListView.separated(
-      itemCount: _results.length,
+      itemCount: _results.length + (tag.isNotEmpty ? 1 : 0),
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
-        final u = _results[index];
+        if (tag.isNotEmpty && index == 0) {
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openTag(tag),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tag, color: Color(0xFF6D6D75)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'See posts tagged #$tag',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        final offset = tag.isNotEmpty ? 1 : 0;
+        final u = _results[index - offset];
         return Material(
           color: Colors.transparent,
           child: InkWell(
@@ -257,6 +285,22 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         );
       },
+    );
+  }
+
+  String get _normalizedTagQuery {
+    final q = _controller.text.trim();
+    if (q.isEmpty) return '';
+    return q.replaceFirst(RegExp(r'^#'), '');
+  }
+
+  void _openTag(String tag) {
+    final q = tag.trim().replaceFirst(RegExp(r'^#'), '');
+    if (q.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TaggedPostsScreen(initialTag: q),
+      ),
     );
   }
 }

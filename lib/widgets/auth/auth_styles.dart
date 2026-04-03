@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_typography.dart';
+
 class AuthColors {
   static const primaryRed = Color(0xFFFF3B30);
   static const hintGray = Color(0xFFBDBDBD);
@@ -8,25 +10,17 @@ class AuthColors {
 }
 
 class AuthTextStyles {
-  static const headlineRed = TextStyle(
-    fontSize: 36,
-    height: 1.05,
-    fontWeight: FontWeight.w800,
-    color: AuthColors.primaryRed,
-  );
+  static TextStyle get headlineRed => buildAppTextTheme().headlineMedium!.copyWith(
+        color: AuthColors.primaryRed,
+      );
 
-  static const headlineBlack = TextStyle(
-    fontSize: 36,
-    height: 1.05,
-    fontWeight: FontWeight.w800,
-    color: Colors.black,
-  );
+  static TextStyle get headlineBlack => buildAppTextTheme().headlineMedium!.copyWith(
+        color: Colors.black,
+      );
 
-  static const fieldLabel = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w600,
-    color: Colors.black,
-  );
+  static TextStyle get fieldLabel => buildAppTextTheme().titleSmall!.copyWith(
+        color: Colors.black,
+      );
 }
 
 InputDecoration authInputDecoration({
@@ -35,9 +29,9 @@ InputDecoration authInputDecoration({
 }) {
   return InputDecoration(
     hintText: hintText,
-    hintStyle: const TextStyle(
+    hintStyle: buildAppTextTheme().bodySmall?.copyWith(
       color: AuthColors.hintGray,
-      fontSize: 12,
+      fontWeight: FontWeight.w400,
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     enabledBorder: OutlineInputBorder(
@@ -60,8 +54,7 @@ ButtonStyle primaryPillButtonStyle() {
       borderRadius: BorderRadius.circular(999),
     ),
     minimumSize: const Size.fromHeight(48),
-    textStyle: const TextStyle(
-      fontSize: 14,
+    textStyle: buildAppTextTheme().bodyMedium?.copyWith(
       fontWeight: FontWeight.w600,
     ),
   );
@@ -75,8 +68,7 @@ ButtonStyle outlinedPillButtonStyle() {
     ),
     side: const BorderSide(color: AuthColors.borderGray, width: 1),
     minimumSize: const Size.fromHeight(48),
-    textStyle: const TextStyle(
-      fontSize: 14,
+    textStyle: buildAppTextTheme().bodyMedium?.copyWith(
       fontWeight: FontWeight.w600,
     ),
   );

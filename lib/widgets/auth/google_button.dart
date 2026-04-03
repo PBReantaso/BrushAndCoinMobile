@@ -44,12 +44,12 @@ class _GoogleGMark extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
         border: Border.all(color: const Color(0xFFE0E0E0)),
       ),
-      child: const Text(
+      child: Text(
         'G',
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w800,
-        ),
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
+            ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../home/create_post_screen.dart';
 import 'commission_detail_screen.dart';
 
 enum _CommissionFilter { all, pending, accepted, inProgress, completed }
@@ -126,18 +127,17 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'No commissions can be found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF4A4A4A),
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF4A4A4A),
+                              ),
                         ),
                         const SizedBox(height: 6),
                         GestureDetector(
                           onTap: () {
-                            Navigator.pushNamed(context, '/create_post');
+                            showCreatePostBottomSheet(context);
                           },
                           child: const Text(
                             'Start sharing your art',
@@ -162,18 +162,17 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'No commissions can be found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF4A4A4A),
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF4A4A4A),
+                              ),
                         ),
                         const SizedBox(height: 6),
                         GestureDetector(
                           onTap: () {
-                            Navigator.pushNamed(context, '/create_post');
+                            showCreatePostBottomSheet(context);
                           },
                           child: const Text(
                             'Start sharing your art',
@@ -296,11 +295,10 @@ class _StatusFilterRow extends StatelessWidget {
                 child: Center(
                   child: Text(
                     labels[opt]!,
-                    style: TextStyle(
-                      color: selected ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: selected ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                 ),
               ),
@@ -329,6 +327,7 @@ class _CommissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -350,27 +349,25 @@ class _CommissionCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: t.titleSmall?.copyWith(
                     fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    color: Color(0xFF111111),
+                    color: const Color(0xFF111111),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Client: $clientName',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6E6E6E),
+                  style: t.bodySmall?.copyWith(
+                    color: const Color(0xFF6E6E6E),
                     height: 1.2,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 if (date != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     date!,
-                    style:
-                        const TextStyle(fontSize: 11, color: Color(0xFF9B9B9F)),
+                    style: t.labelSmall?.copyWith(color: const Color(0xFF9B9B9F)),
                   ),
                 ],
               ],
@@ -381,8 +378,7 @@ class _CommissionCard extends StatelessWidget {
             children: [
               Text(
                 statusLabel,
-                style: TextStyle(
-                  fontSize: 12,
+                style: t.bodySmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: statusColor,
                 ),
