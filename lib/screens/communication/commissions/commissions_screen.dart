@@ -1,43 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+
+import '../../../models/app_models.dart';
+import '../../../services/api_client.dart';
+import 'commission_detail_screen.dart';
 
 enum _CommissionFilter { all, pending, accepted, inProgress, completed }
-
-class _CommissionRequest {
-  final String name;
-  final String message;
-  final DateTime timestamp;
-  final String statusLabel;
-  final _CommissionFilter status;
-
-  // Visual accents to mimic the UI style in the screenshots.
-  final Color backgroundColor;
-  final Color sideBarColor;
-
-  const _CommissionRequest({
-    required this.name,
-    required this.message,
-    required this.timestamp,
-    required this.statusLabel,
-    required this.status,
-    required this.backgroundColor,
-    required this.sideBarColor,
-  });
-
-  String get dateLabel {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(timestamp.year, timestamp.month, timestamp.day);
-
-    if (messageDate == today) {
-      // Show time if today
-      return DateFormat('h:mm a').format(timestamp).toLowerCase();
-    } else {
-      // Show date
-      return DateFormat('MM/dd/yyyy').format(timestamp);
-    }
-  }
-}
 
 class CommissionsScreen extends StatefulWidget {
   const CommissionsScreen({super.key});
@@ -47,65 +14,75 @@ class CommissionsScreen extends StatefulWidget {
 }
 
 class _CommissionsScreenState extends State<CommissionsScreen> {
+  final _apiClient = ApiClient();
   _CommissionFilter _filter = _CommissionFilter.all;
+  late Future<List<Project>> _commissionsFuture;
 
-  List<_CommissionRequest> _commissionRequests() {
-    // Note: API conversations currently only contains `name`, so these
-    // request cards are UI placeholders to match your screenshot layout.
-    return [
-      _CommissionRequest(
-        name: 'Michael',
-        message: 'See the commission request below.',
-        timestamp: DateTime(2026, 3, 19),
-        statusLabel: 'Pending',
-        status: _CommissionFilter.pending,
-        backgroundColor: Colors.white,
-        sideBarColor: Color(0xFFFF4A4A),
-      ),
-      _CommissionRequest(
-        name: 'Donatello',
-        message: 'My rat splinter likes your art',
-        timestamp: DateTime(2026, 3, 17),
-        statusLabel: 'Accepted',
-        status: _CommissionFilter.accepted,
-        backgroundColor: Colors.white,
-        sideBarColor: Color(0xFFFF4A4A),
-      ),
-      _CommissionRequest(
-        name: 'Leonardo',
-        message: '6×7 canvas?',
-        timestamp: DateTime.now().subtract(Duration(hours: 2)),
-        statusLabel: 'In progress',
-        status: _CommissionFilter.inProgress,
-        backgroundColor: Color(0xFFFFE9E9),
-        sideBarColor: Color(0xFFFF4A4A),
-      ),
-      _CommissionRequest(
-        name: 'Raphael',
-        message: 'The commission was successful',
-        timestamp: DateTime(2026, 2, 17),
-        statusLabel: 'Completed',
-        status: _CommissionFilter.completed,
-        backgroundColor: Colors.white,
-        sideBarColor: Color(0xFF101010),
-      ),
-      _CommissionRequest(
-        name: 'Zoro',
-        message: 'The commission failed',
-        timestamp: DateTime(2026, 2, 17),
-        statusLabel: 'Failed',
-        status: _CommissionFilter.all,
-        backgroundColor: Color(0xFFF3F3F6),
-        sideBarColor: Color(0xFF2A2A2A),
-      ),
-    ];
+  @override
+  void initState() {
+    super.initState();
+    _commissionsFuture = _loadCommissions();
   }
 
-  bool _matchesFilter(_CommissionRequest item) {
-    if (_filter == _CommissionFilter.all) return true;
-    // Only the four screenshot filters are mapped; "Failed" is shown only in All.
-    if (item.status == _CommissionFilter.all) return false;
-    return item.status == _filter;
+  Future<List<Project>> _loadCommissions() async {
+    final items = await _apiClient.fetchCommissions();
+    return items.map(Project.fromJson).toList();
+  }
+
+  List<Project> _applyFilter(List<Project> items) {
+    if (_filter == _CommissionFilter.all) return items;
+
+    return items.where((project) {
+      final status = project.status;
+      switch (_filter) {
+        case _CommissionFilter.pending:
+          return status == ProjectStatus.inquiry;
+        case _CommissionFilter.accepted:
+        case _CommissionFilter.inProgress:
+          return status == ProjectStatus.inProgress;
+        case _CommissionFilter.completed:
+          return status == ProjectStatus.completed;
+        default:
+          return true;
+      }
+    }).toList();
+  }
+
+  bool _isSeedCommission(Project project) {
+    const seedTitles = ['Portrait Commission', 'Event Mural'];
+    const seedClients = ['Ana Santos', 'Local Café'];
+    return seedTitles.contains(project.title) ||
+        seedClients.contains(project.clientName);
+  }
+
+  String _statusLabel(ProjectStatus status) {
+    switch (status) {
+      case ProjectStatus.inquiry:
+        return 'Pending';
+      case ProjectStatus.accepted:
+        return 'Accepted';
+      case ProjectStatus.inProgress:
+        return 'In progress';
+      case ProjectStatus.completed:
+        return 'Completed';
+      case ProjectStatus.rejected:
+        return 'Rejected';
+    }
+  }
+
+  Color _statusColor(ProjectStatus status) {
+    switch (status) {
+      case ProjectStatus.inquiry:
+        return const Color(0xFFFF4A4A);
+      case ProjectStatus.accepted:
+        return const Color(0xFF1976D2);
+      case ProjectStatus.inProgress:
+        return const Color(0xFFFFA000);
+      case ProjectStatus.completed:
+        return const Color(0xFF2E7D32);
+      case ProjectStatus.rejected:
+        return const Color(0xFFB71C1C);
+    }
   }
 
   @override
@@ -121,17 +98,139 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              itemCount:
-                  _commissionRequests().where(_matchesFilter).length,
-              itemBuilder: (context, index) {
-                final items =
-                    _commissionRequests().where(_matchesFilter).toList();
-                final item = items[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _CommissionCard(request: item),
+            child: FutureBuilder<List<Project>>(
+              future: _commissionsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  final personalCommissions = snapshot.data ?? [];
+
+                  if (personalCommissions.isNotEmpty) {
+                    return Center(
+                      child: FilledButton(
+                        onPressed: () {
+                          setState(() {
+                            _commissionsFuture = _loadCommissions();
+                          });
+                        },
+                        child: const Text('Retry loading commissions'),
+                      ),
+                    );
+                  }
+
+                  // No personal commissions available yet, show empty invocation instead.
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'No commissions can be found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4A4A4A),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/create_post');
+                          },
+                          child: const Text(
+                            'Start sharing your art',
+                            style: TextStyle(
+                              color: Color(0xFFD32F2F),
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final commissions = _applyFilter(snapshot.data ?? []);
+                final visibleCommissions =
+                    commissions.where((p) => !_isSeedCommission(p)).toList();
+
+                if (visibleCommissions.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'No commissions can be found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4A4A4A),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/create_post');
+                          },
+                          child: const Text(
+                            'Start sharing your art',
+                            style: TextStyle(
+                              color: Color(0xFFD32F2F),
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    setState(() {
+                      _commissionsFuture = _loadCommissions();
+                    });
+                    await _commissionsFuture;
+                  },
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: visibleCommissions.length,
+                    itemBuilder: (context, index) {
+                      final commission = visibleCommissions[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: GestureDetector(
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CommissionDetailScreen(
+                                    commission: commission),
+                              ),
+                            );
+                            if (result == true && mounted) {
+                              setState(() {
+                                _commissionsFuture = _loadCommissions();
+                              });
+                            }
+                          },
+                          child: _CommissionCard(
+                            title: commission.title,
+                            clientName: commission.clientName,
+                            statusLabel: _statusLabel(commission.status),
+                            statusColor: _statusColor(commission.status),
+                            date: commission.milestones.isNotEmpty
+                                ? 'Milestones: ${commission.milestones.length}'
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
             ),
@@ -189,7 +288,9 @@ class _StatusFilterRow extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFFFF4A4A) : const Color(0xFFF3F3F6),
+                  color: selected
+                      ? const Color(0xFFFF4A4A)
+                      : const Color(0xFFF3F3F6),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Center(
@@ -212,15 +313,25 @@ class _StatusFilterRow extends StatelessWidget {
 }
 
 class _CommissionCard extends StatelessWidget {
-  final _CommissionRequest request;
+  final String title;
+  final String clientName;
+  final String statusLabel;
+  final Color statusColor;
+  final String? date;
 
-  const _CommissionCard({required this.request});
+  const _CommissionCard({
+    required this.title,
+    required this.clientName,
+    required this.statusLabel,
+    required this.statusColor,
+    this.date,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: request.backgroundColor,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.all(12),
@@ -230,8 +341,7 @@ class _CommissionCard extends StatelessWidget {
           CircleAvatar(
             radius: 22,
             backgroundColor: Colors.black12,
-            child: const Icon(Icons.account_circle_rounded,
-                color: Color(0xFF111111), size: 20),
+            child: const Icon(Icons.brush, color: Color(0xFF111111), size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -239,7 +349,7 @@ class _CommissionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  request.name,
+                  title,
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -248,15 +358,21 @@ class _CommissionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  request.message,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  'Client: $clientName',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6E6E6E),
                     height: 1.2,
                   ),
                 ),
+                if (date != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    date!,
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xFF9B9B9F)),
+                  ),
+                ],
               ],
             ),
           ),
@@ -264,22 +380,11 @@ class _CommissionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                request.dateLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF9B9B9F),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                request.statusLabel,
+                statusLabel,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: request.statusLabel == 'Pending'
-                      ? Colors.black
-                      : Colors.black87,
+                  color: statusColor,
                 ),
               ),
             ],
@@ -289,7 +394,7 @@ class _CommissionCard extends StatelessWidget {
             width: 6,
             height: 76,
             decoration: BoxDecoration(
-              color: request.sideBarColor,
+              color: statusColor,
               borderRadius: BorderRadius.circular(999),
             ),
           ),

@@ -145,6 +145,52 @@ class ApiClient {
     return _readList(json['projects']);
   }
 
+  Future<List<Map<String, dynamic>>> fetchCommissions() async {
+    final json = await _getJsonProtected('/commissions');
+    return _readList(json['commissions']);
+  }
+
+  Future<Map<String, dynamic>> createCommission({
+    required String title,
+    required String clientName,
+    String description = '',
+    required double budget,
+    String? deadline,
+    String specialRequirements = '',
+    bool isUrgent = false,
+    List<String> referenceImages = const [],
+    double totalAmount = 0,
+  }) async {
+    final response = await _authorizedPost(
+      '/commissions',
+      body: {
+        'title': title,
+        'clientName': clientName,
+        'description': description,
+        'budget': budget,
+        'deadline': deadline,
+        'specialRequirements': specialRequirements,
+        'isUrgent': isUrgent,
+        'referenceImages': referenceImages,
+        'totalAmount': totalAmount,
+      },
+    );
+    final json = _throwIfErrorAndReadJson(response);
+    final commission = json['commission'];
+    if (commission is Map) {
+      return commission.map((k, v) => MapEntry('$k', v));
+    }
+    throw ApiException('Unexpected response format.');
+  }
+
+  Future<void> updateCommissionStatus(int commissionId, String status) async {
+    final response = await _authorizedPut(
+      '/commissions/$commissionId/status',
+      body: {'status': status},
+    );
+    _throwIfError(response);
+  }
+
   Future<List<Map<String, dynamic>>> fetchMessages() async {
     final json = await _getJsonProtected('/messages');
     return _readList(json['conversations']);

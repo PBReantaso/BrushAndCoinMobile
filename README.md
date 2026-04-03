@@ -32,9 +32,13 @@ flutter run --dart-define=API_BASE_URL=http://localhost:4000
 ```
 
 If its a different device
+1.command propmt ipconfig
+2.find "Wireless LAN adapter Wi-Fi"
+3.copy your IPv4 Address
+
 
 ```bash
-flutter run --dart-define=API_BASE_URL=http://192.168.1.54:4000
+flutter run --dart-define=API_BASE_URL=http://pasteyour IPv4 address:4000
 ```
 
 The home screen shows a simple dashboard, and you can navigate between `Home`, `Artists`, `Projects`, `Messages`, and `Profile` using the bottom navigation bar. Each tab is just a starter UI that you can extend with real data, geo-location, chat, contracts, and payment integrations.

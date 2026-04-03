@@ -11,10 +11,14 @@ class ProjectCard extends StatelessWidget {
     switch (project.status) {
       case ProjectStatus.inquiry:
         return 'Inquiry';
+      case ProjectStatus.accepted:
+        return 'Accepted';
       case ProjectStatus.inProgress:
         return 'In Progress';
       case ProjectStatus.completed:
         return 'Completed';
+      case ProjectStatus.rejected:
+        return 'Rejected';
     }
   }
 
@@ -22,10 +26,14 @@ class ProjectCard extends StatelessWidget {
     switch (project.status) {
       case ProjectStatus.inquiry:
         return Colors.orange;
+      case ProjectStatus.accepted:
+        return Colors.blueAccent;
       case ProjectStatus.inProgress:
         return Colors.blue;
       case ProjectStatus.completed:
         return Colors.green;
+      case ProjectStatus.rejected:
+        return Colors.redAccent;
     }
   }
 
