@@ -91,6 +91,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
+  Future<void> _reloadConversations() async {
+    final f = _loadConversations();
+    setState(() {
+      _conversationsFuture = f;
+    });
+    await f;
+  }
+
+  Future<void> _onPullRefresh() async {
+    await _reloadConversations();
+    if (!mounted) return;
+    InboxBadgeScope.maybeOf(context)?.refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -104,14 +118,28 @@ class _MessagesScreenState extends State<MessagesScreen> {
             );
           }
           if (snapshot.hasError) {
-            return Center(
-              child: FilledButton(
-                onPressed: () {
-                  setState(() {
-                    _conversationsFuture = _loadConversations();
-                  });
+            return RefreshIndicator(
+              color: const Color(0xFFFF4A4A),
+              onRefresh: _onPullRefresh,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Center(
+                        child: FilledButton(
+                          onPressed: () {
+                            setState(() {
+                              _conversationsFuture = _loadConversations();
+                            });
+                          },
+                          child: const Text('Retry loading messages'),
+                        ),
+                      ),
+                    ),
+                  );
                 },
-                child: const Text('Retry loading messages'),
               ),
             );
           }
@@ -119,17 +147,28 @@ class _MessagesScreenState extends State<MessagesScreen> {
           final conversations = snapshot.data ?? const <Conversation>[];
 
           if (conversations.isEmpty) {
-            return const Center(child: Text('No messages yet.'));
+            return RefreshIndicator(
+              color: const Color(0xFFFF4A4A),
+              onRefresh: _onPullRefresh,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: const Center(child: Text('No messages yet.')),
+                    ),
+                  );
+                },
+              ),
+            );
           }
 
           return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {
-                _conversationsFuture = _loadConversations();
-              });
-              InboxBadgeScope.maybeOf(context)?.refresh();
-            },
+            color: const Color(0xFFFF4A4A),
+            onRefresh: _onPullRefresh,
             child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.zero,
               itemCount: conversations.length,
               itemBuilder: (context, index) {

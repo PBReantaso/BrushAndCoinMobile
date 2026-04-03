@@ -105,14 +105,22 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
           final sortedDayEvents = _sortEvents(eventsOnSelectedDay, _eventSortMode);
           final t = Theme.of(context).textTheme;
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              16 + kContentBelowAppBarPadding,
-              16,
-              16,
-            ),
-            children: [
+          return RefreshIndicator(
+            color: const Color(0xFFFF4A4A),
+            onRefresh: () async {
+              final f = _loadEvents();
+              setState(() => _eventsFuture = f);
+              await f;
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                16 + kContentBelowAppBarPadding,
+                16,
+                16,
+              ),
+              children: [
               _CalendarCard(
                 monthLabel: header,
                 leadingBlanks: leadingBlanks,
@@ -273,6 +281,7 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
                 const SizedBox(height: 10),
               ],
             ],
+            ),
           );
         },
       ),

@@ -30,6 +30,14 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
     return items.map(Project.fromJson).toList();
   }
 
+  Future<void> _reloadCommissions() async {
+    final f = _loadCommissions();
+    setState(() {
+      _commissionsFuture = f;
+    });
+    await f;
+  }
+
   List<Project> _applyFilter(List<Project> items) {
     if (_filter == _CommissionFilter.all) return items;
 
@@ -110,45 +118,69 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
                   final personalCommissions = snapshot.data ?? [];
 
                   if (personalCommissions.isNotEmpty) {
-                    return Center(
-                      child: FilledButton(
-                        onPressed: () {
-                          setState(() {
-                            _commissionsFuture = _loadCommissions();
-                          });
+                    return RefreshIndicator(
+                      color: const Color(0xFFFF4A4A),
+                      onRefresh: _reloadCommissions,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                              child: Center(
+                                child: FilledButton(
+                                  onPressed: _reloadCommissions,
+                                  child: const Text('Retry loading commissions'),
+                                ),
+                              ),
+                            ),
+                          );
                         },
-                        child: const Text('Retry loading commissions'),
                       ),
                     );
                   }
 
                   // No personal commissions available yet, show empty invocation instead.
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'No commissions can be found',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF4A4A4A),
+                  return RefreshIndicator(
+                    color: const Color(0xFFFF4A4A),
+                    onRefresh: _reloadCommissions,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'No commissions can be found',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF4A4A4A),
+                                        ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showCreatePostBottomSheet(context);
+                                    },
+                                    child: const Text(
+                                      'Start sharing your art',
+                                      style: TextStyle(
+                                        color: Color(0xFFD32F2F),
+                                        fontWeight: FontWeight.w700,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                        ),
-                        const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: () {
-                            showCreatePostBottomSheet(context);
-                          },
-                          child: const Text(
-                            'Start sharing your art',
-                            style: TextStyle(
-                              color: Color(0xFFD32F2F),
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.underline,
                             ),
                           ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   );
                 }
@@ -158,44 +190,55 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
                     commissions.where((p) => !_isSeedCommission(p)).toList();
 
                 if (visibleCommissions.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'No commissions can be found',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF4A4A4A),
+                  return RefreshIndicator(
+                    color: const Color(0xFFFF4A4A),
+                    onRefresh: _reloadCommissions,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'No commissions can be found',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF4A4A4A),
+                                        ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showCreatePostBottomSheet(context);
+                                    },
+                                    child: const Text(
+                                      'Start sharing your art',
+                                      style: TextStyle(
+                                        color: Color(0xFFD32F2F),
+                                        fontWeight: FontWeight.w700,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                        ),
-                        const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: () {
-                            showCreatePostBottomSheet(context);
-                          },
-                          child: const Text(
-                            'Start sharing your art',
-                            style: TextStyle(
-                              color: Color(0xFFD32F2F),
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.underline,
                             ),
                           ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   );
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () async {
-                    setState(() {
-                      _commissionsFuture = _loadCommissions();
-                    });
-                    await _commissionsFuture;
-                  },
+                  color: const Color(0xFFFF4A4A),
+                  onRefresh: _reloadCommissions,
                   child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.zero,
                     itemCount: visibleCommissions.length,
                     itemBuilder: (context, index) {

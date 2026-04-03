@@ -28,16 +28,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _refreshFeed();
   }
 
-  Future<void> _refreshFeed() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _refreshFeed({bool showFullScreenLoading = true}) async {
+    if (showFullScreenLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    } else {
+      setState(() => _errorMessage = null);
+    }
     try {
       final postsRaw = await _apiClient.fetchFeedPosts();
       if (!mounted) return;
       setState(() {
         _posts = postsRaw.map(_FeedPost.fromJson).toList();
+        _errorMessage = null;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -50,7 +55,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _errorMessage = e.toString();
       });
     } finally {
-      if (mounted) {
+      if (mounted && showFullScreenLoading) {
         setState(() {
           _isLoading = false;
         });
@@ -65,61 +70,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Failed to load home feed.'),
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _refreshFeed,
-                        child: const Text('Retry'),
-                      ),
-                    ],
+              ? RefreshIndicator(
+                  color: const Color(0xFFFF4A4A),
+                  onRefresh: () => _refreshFeed(showFullScreenLoading: false),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Failed to load home feed.'),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _errorMessage!,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                const SizedBox(height: 12),
+                                FilledButton(
+                                  onPressed: () => _refreshFeed(showFullScreenLoading: true),
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 )
-              : CustomScrollView(
-            slivers: [
-              const SliverToBoxAdapter(
-                child: Divider(height: 1, color: Color(0xFFD8D8DE)),
-              ),
-              const SliverToBoxAdapter(
-                child: SizedBox(height: kContentBelowAppBarPadding),
-              ),
-              SliverList.separated(
-                itemCount: _posts.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final p = _posts[index];
-                  return FeedPostCard(
-                    postId: p.id,
-                    authorUserId: p.userId,
-                    author: p.authorName.isEmpty ? 'Brush&Coin' : p.authorName,
-                    authorAvatarUrl: p.authorAvatarUrl,
-                    subtitle: p.createdAtText,
-                    category: p.category,
-                    title: p.title.isEmpty ? 'Untitled Post' : p.title,
-                    description: p.description,
-                    tags: p.tags,
-                    imageUrl: p.imageUrl,
-                    likeCount: p.likeCount,
-                    commentCount: p.commentCount,
-                    likedByMe: p.likedByMe,
-                    onLikeTap: () => _toggleLike(p),
-                    onCommentTap: () => _commentOnPost(p),
-                    onTagTap: (tag) => _openTag(tag),
-                  );
-                },
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            ],
-          ),
+              : RefreshIndicator(
+                  color: const Color(0xFFFF4A4A),
+                  onRefresh: () => _refreshFeed(showFullScreenLoading: false),
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      const SliverToBoxAdapter(
+                        child: Divider(height: 1, color: Color(0xFFD8D8DE)),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: kContentBelowAppBarPadding),
+                      ),
+                      SliverList.separated(
+                        itemCount: _posts.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final p = _posts[index];
+                          return FeedPostCard(
+                            postId: p.id,
+                            authorUserId: p.userId,
+                            author: p.authorName.isEmpty ? 'Brush&Coin' : p.authorName,
+                            authorAvatarUrl: p.authorAvatarUrl,
+                            subtitle: p.createdAtText,
+                            category: p.category,
+                            title: p.title.isEmpty ? 'Untitled Post' : p.title,
+                            description: p.description,
+                            tags: p.tags,
+                            imageUrl: p.imageUrl,
+                            likeCount: p.likeCount,
+                            commentCount: p.commentCount,
+                            likedByMe: p.likedByMe,
+                            onLikeTap: () => _toggleLike(p),
+                            onCommentTap: () => _commentOnPost(p),
+                            onTagTap: (tag) => _openTag(tag),
+                          );
+                        },
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    ],
+                  ),
+                ),
     );
   }
 

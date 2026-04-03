@@ -57,6 +57,21 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
     });
   }
 
+  Future<void> _pullRefreshProfile() async {
+    try {
+      final data = await _loadProfile();
+      if (!mounted) return;
+      setState(() {
+        _profileFuture = Future.value(data);
+      });
+    } catch (e, stackTrace) {
+      if (!mounted) return;
+      setState(() {
+        _profileFuture = Future.error(e, stackTrace);
+      });
+    }
+  }
+
   Future<_ProfileLoadResult> _loadProfile() async {
     final postsRaw = await _apiClient.fetchMyPosts();
     final meJson = await _apiClient.fetchMe();
@@ -175,8 +190,12 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final avatarUrl = data?.avatarUrl ?? p.avatarUrl;
           final postsCount = posts.length;
 
-          return CustomScrollView(
-            slivers: [
+          return RefreshIndicator(
+            color: const Color(0xFFFF4A4A),
+            onRefresh: _pullRefreshProfile,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -372,7 +391,9 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                   ),
                 ),
               ),
-              if (snapshot.connectionState == ConnectionState.waiting)
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData &&
+                  !snapshot.hasError)
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.all(24),
@@ -452,6 +473,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
             ],
+            ),
           );
         },
       ),
