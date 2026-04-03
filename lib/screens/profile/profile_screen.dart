@@ -6,6 +6,7 @@ import '../../navigation/app_route_observer.dart';
 import '../../services/api_client.dart';
 import '../../state/app_profile_scope.dart';
 import '../../widgets/common/bc_app_bar.dart';
+import '../../widgets/profile/follow_connections_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -58,16 +59,19 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
     var apiUsername = '';
     var followerCount = 0;
     var followingCount = 0;
+    var myUserId = 0;
     if (user is Map) {
       apiUsername = (user['username'] as String?)?.trim() ?? '';
       followerCount = _readStatInt(user['followerCount']);
       followingCount = _readStatInt(user['followingCount']);
+      myUserId = _readStatInt(user['id']);
     }
     return _ProfileLoadResult(
       posts: postsRaw.map(_ProfilePost.fromJson).toList(),
       apiUsername: apiUsername,
       followerCount: followerCount,
       followingCount: followingCount,
+      myUserId: myUserId,
     );
   }
 
@@ -104,6 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final apiUsername = data?.apiUsername ?? '';
           final followerCount = data?.followerCount ?? 0;
           final followingCount = data?.followingCount ?? 0;
+          final myUserId = data?.myUserId ?? 0;
           final headerName = apiUsername.isNotEmpty
               ? apiUsername
               : (localUsername.isNotEmpty ? localUsername : 'Name');
@@ -139,8 +144,32 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
                                 _Stat(label: 'posts', value: '$postsCount'),
-                                _Stat(label: 'followers', value: '$followerCount'),
-                                _Stat(label: 'following', value: '$followingCount'),
+                                _Stat(
+                                  label: 'followers',
+                                  value: '$followerCount',
+                                  onTap: myUserId > 0
+                                      ? () => showFollowConnectionsSheet(
+                                            context: context,
+                                            userId: myUserId,
+                                            displayUsername: headerName,
+                                            initialTab: 0,
+                                            onClosed: _refreshProfile,
+                                          )
+                                      : null,
+                                ),
+                                _Stat(
+                                  label: 'following',
+                                  value: '$followingCount',
+                                  onTap: myUserId > 0
+                                      ? () => showFollowConnectionsSheet(
+                                            context: context,
+                                            userId: myUserId,
+                                            displayUsername: headerName,
+                                            initialTab: 1,
+                                            onClosed: _refreshProfile,
+                                          )
+                                      : null,
+                                ),
                               ],
                             ),
                           ),
@@ -346,24 +375,27 @@ class _ProfileLoadResult {
   final String apiUsername;
   final int followerCount;
   final int followingCount;
+  final int myUserId;
 
   const _ProfileLoadResult({
     required this.posts,
     required this.apiUsername,
     required this.followerCount,
     required this.followingCount,
+    required this.myUserId,
   });
 }
 
 class _Stat extends StatelessWidget {
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
@@ -380,6 +412,20 @@ class _Stat extends StatelessWidget {
           style: const TextStyle(fontSize: 12, color: Color(0xFF6C6C74)),
         ),
       ],
+    );
+    if (onTap == null) {
+      return column;
+    }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: column,
+        ),
+      ),
     );
   }
 }

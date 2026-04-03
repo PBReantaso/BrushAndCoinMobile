@@ -51,7 +51,7 @@ class ApiClient {
   static String get _baseUrl =>
       _envApiBaseUrl.isNotEmpty ? _envApiBaseUrl : _defaultBaseUrl();
 
-  Uri _uri(String path) => Uri.parse('${_baseUrl}$path');
+  Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
   Future<void> login({
     required String email,
@@ -320,6 +320,16 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> fetchUserPosts(int userId) async {
     final json = await _getJsonProtected('/users/$userId/posts');
     return _readList(json['posts']);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchFollowers(int userId) async {
+    final json = await _getJsonProtected('/users/$userId/followers');
+    return _readList(json['users']);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchFollowing(int userId) async {
+    final json = await _getJsonProtected('/users/$userId/following');
+    return _readList(json['users']);
   }
 
   Future<void> updateProfile({required String username}) async {

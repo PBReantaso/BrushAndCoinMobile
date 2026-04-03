@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_models.dart';
 import '../../services/api_client.dart';
+import '../../widgets/profile/follow_connections_sheet.dart';
 import '../communication/commissions/commission_request_screen.dart';
 import '../communication/messages/chat_screen.dart';
 
@@ -372,8 +373,32 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _Stat(label: 'posts', value: '${posts.length}'),
-                          _Stat(label: 'followers', value: '${data.followerCount}'),
-                          _Stat(label: 'following', value: '${data.followingCount}'),
+                          _Stat(
+                            label: 'followers',
+                            value: '${data.followerCount}',
+                            onTap: () => showFollowConnectionsSheet(
+                              context: context,
+                              userId: widget.userId,
+                              displayUsername: data.username,
+                              initialTab: 0,
+                              onClosed: () {
+                                if (mounted) _bootstrap();
+                              },
+                            ),
+                          ),
+                          _Stat(
+                            label: 'following',
+                            value: '${data.followingCount}',
+                            onTap: () => showFollowConnectionsSheet(
+                              context: context,
+                              userId: widget.userId,
+                              displayUsername: data.username,
+                              initialTab: 1,
+                              onClosed: () {
+                                if (mounted) _bootstrap();
+                              },
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -581,12 +606,13 @@ class _GalleryTile extends StatelessWidget {
 class _Stat extends StatelessWidget {
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
@@ -603,6 +629,18 @@ class _Stat extends StatelessWidget {
           style: const TextStyle(fontSize: 12, color: Color(0xFF6C6C74)),
         ),
       ],
+    );
+    if (onTap == null) return column;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: column,
+        ),
+      ),
     );
   }
 }
