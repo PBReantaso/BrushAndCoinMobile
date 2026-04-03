@@ -1,9 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../../models/calendar_event.dart';
 import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
+import 'nearby_events_map_screen.dart';
 import '../../theme/content_spacing.dart';
 import '../../widgets/common/bc_app_bar.dart';
 
@@ -27,7 +31,7 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
   final _today = DateTime.now();
   late DateTime _activeMonth;
   late int _selectedDay;
-  late Future<List<_EventItem>> _eventsFuture;
+  late Future<List<CalendarEvent>> _eventsFuture;
   _EventSortMode _eventSortMode = _EventSortMode.timeEarliest;
 
   @override
@@ -38,9 +42,9 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
     _eventsFuture = _loadEvents();
   }
 
-  Future<List<_EventItem>> _loadEvents() async {
+  Future<List<CalendarEvent>> _loadEvents() async {
     final items = await _apiClient.fetchEvents();
-    return items.map(_EventItem.fromJson).toList();
+    return items.map((m) => CalendarEvent.fromJson(m)).toList();
   }
 
   void _prevMonth() {
@@ -66,7 +70,7 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
 
     return Scaffold(
       appBar: const BcAppBar(),
-      body: FutureBuilder<List<_EventItem>>(
+      body: FutureBuilder<List<CalendarEvent>>(
         future: _eventsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -85,7 +89,7 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
             );
           }
 
-          final allEvents = snapshot.data ?? const <_EventItem>[];
+          final allEvents = snapshot.data ?? const <CalendarEvent>[];
           final daysWithEventsInMonth = <int>{};
           for (final e in allEvents) {
             if (e.eventDate.year == _activeMonth.year &&
@@ -130,7 +134,25 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => NearbyEventsMapScreen(
+                          events: allEvents,
+                          onEventTap: (e) async {
+                            final changed = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => _EventDetailsScreen(event: e),
+                              ),
+                            );
+                            if (changed == true && mounted) {
+                              setState(() => _eventsFuture = _loadEvents());
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  },
                   child: Text(
                     'Locate Events Near Me',
                     style: t.labelLarge?.copyWith(color: Colors.white),
@@ -418,7 +440,7 @@ class _EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Material(
-      color: const Color(0xFFF1F1F3),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -514,7 +536,7 @@ int? _dayListMinutesFromTimeString(String raw) {
   return hour * 60 + minute.clamp(0, 59);
 }
 
-int? _dayListMinutesForEvent(_EventItem e) {
+int? _dayListMinutesForEvent(CalendarEvent e) {
   final main = _dayListMinutesFromTimeString(e.eventTime);
   if (main != null) return main;
   for (final sch in e.schedules) {
@@ -524,7 +546,7 @@ int? _dayListMinutesForEvent(_EventItem e) {
   return null;
 }
 
-int _compareEventsByTime(_EventItem a, _EventItem b, {required bool latestFirst}) {
+int _compareEventsByTime(CalendarEvent a, CalendarEvent b, {required bool latestFirst}) {
   final ma = _dayListMinutesForEvent(a);
   final mb = _dayListMinutesForEvent(b);
   if (ma == null && mb == null) return 0;
@@ -533,8 +555,8 @@ int _compareEventsByTime(_EventItem a, _EventItem b, {required bool latestFirst}
   return latestFirst ? mb.compareTo(ma) : ma.compareTo(mb);
 }
 
-List<_EventItem> _sortEvents(List<_EventItem> events, _EventSortMode mode) {
-  final out = List<_EventItem>.from(events);
+List<CalendarEvent> _sortEvents(List<CalendarEvent> events, _EventSortMode mode) {
+  final out = List<CalendarEvent>.from(events);
   switch (mode) {
     case _EventSortMode.titleAZ:
       out.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
@@ -548,123 +570,6 @@ List<_EventItem> _sortEvents(List<_EventItem> events, _EventSortMode mode) {
       out.sort((a, b) => _compareEventsByTime(a, b, latestFirst: true));
   }
   return out;
-}
-
-class _EventItem {
-  final int id;
-  final String title;
-  final DateTime eventDate;
-  final String eventTime;
-  final String category;
-  final String venue;
-  final String locationText;
-  final String description;
-  final String additionalInfo;
-  final double? latitude;
-  final double? longitude;
-  final List<_EventScheduleItem> schedules;
-  final String? imageUrl;
-  final int? createdBy;
-
-  const _EventItem({
-    required this.id,
-    required this.title,
-    required this.eventDate,
-    required this.eventTime,
-    required this.category,
-    required this.venue,
-    required this.locationText,
-    required this.description,
-    required this.additionalInfo,
-    required this.latitude,
-    required this.longitude,
-    required this.schedules,
-    required this.imageUrl,
-    required this.createdBy,
-  });
-
-  factory _EventItem.fromJson(Map<String, dynamic> json) {
-    final dateRaw = (json['eventDate'] as String?) ?? '';
-    final parsedDate = DateTime.tryParse(dateRaw) ?? DateTime.now();
-    final rawSchedules = json['schedules'];
-    final schedules = rawSchedules is List
-        ? rawSchedules
-            .whereType<Map>()
-            .map((entry) => _EventScheduleItem.fromJson(
-                  entry.map((k, v) => MapEntry('$k', v)),
-                ))
-            .toList()
-        : const <_EventScheduleItem>[];
-
-    return _EventItem(
-      id: _readInt(json['id']) ?? 0,
-      title: (json['title'] as String?) ?? '',
-      eventDate: parsedDate,
-      eventTime: (json['eventTime'] as String?) ?? '',
-      category: (json['category'] as String?) ?? '',
-      venue: (json['venue'] as String?) ?? '',
-      locationText: (json['locationText'] as String?) ?? '',
-      description: (json['description'] as String?) ?? '',
-      additionalInfo: (json['additionalInfo'] as String?) ?? '',
-      latitude: _readDouble(json['latitude']),
-      longitude: _readDouble(json['longitude']),
-      schedules: schedules,
-      imageUrl: json['imageUrl'] as String?,
-      createdBy: _readInt(json['createdBy']),
-    );
-  }
-
-  _EventItem copyWith({
-    String? title,
-    DateTime? eventDate,
-    String? eventTime,
-    String? category,
-    String? venue,
-    String? locationText,
-    String? description,
-    String? additionalInfo,
-    double? latitude,
-    double? longitude,
-    List<_EventScheduleItem>? schedules,
-    String? imageUrl,
-  }) {
-    return _EventItem(
-      id: id,
-      title: title ?? this.title,
-      eventDate: eventDate ?? this.eventDate,
-      eventTime: eventTime ?? this.eventTime,
-      category: category ?? this.category,
-      venue: venue ?? this.venue,
-      locationText: locationText ?? this.locationText,
-      description: description ?? this.description,
-      additionalInfo: additionalInfo ?? this.additionalInfo,
-      latitude: latitude ?? this.latitude,
-      longitude: longitude ?? this.longitude,
-      schedules: schedules ?? this.schedules,
-      imageUrl: imageUrl ?? this.imageUrl,
-      createdBy: createdBy,
-    );
-  }
-}
-
-class _EventScheduleItem {
-  final String name;
-  final String time;
-  final String description;
-
-  const _EventScheduleItem({
-    required this.name,
-    required this.time,
-    required this.description,
-  });
-
-  factory _EventScheduleItem.fromJson(Map<String, dynamic> json) {
-    return _EventScheduleItem(
-      name: (json['name'] as String?) ?? '',
-      time: (json['time'] as String?) ?? '',
-      description: (json['description'] as String?) ?? '',
-    );
-  }
 }
 
 class _EventImage extends StatelessWidget {
@@ -703,8 +608,115 @@ class _EventImage extends StatelessWidget {
   }
 }
 
+Widget _eventLocationMapLayers(LatLng point, double zoom) {
+  return FlutterMap(
+    options: MapOptions(
+      initialCenter: point,
+      initialZoom: zoom,
+      interactionOptions: const InteractionOptions(
+        flags: InteractiveFlag.all,
+      ),
+    ),
+    children: [
+      TileLayer(
+        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        userAgentPackageName: 'com.brushandcoin.app',
+      ),
+      MarkerLayer(
+        markers: [
+          Marker(
+            point: point,
+            width: 44,
+            height: 44,
+            child: const Icon(
+              Icons.location_on,
+              size: 40,
+              color: Color(0xFFFF4A4A),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+/// OpenStreetMap preview for the Location tab when the event has coordinates.
+class _EventLocationMap extends StatelessWidget {
+  final double latitude;
+  final double longitude;
+
+  const _EventLocationMap({
+    required this.latitude,
+    required this.longitude,
+  });
+
+  void _openFullscreen(BuildContext context) {
+    final point = LatLng(latitude, longitude);
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => _EventLocationFullscreenScreen(center: point),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final point = LatLng(latitude, longitude);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _eventLocationMapLayers(point, 15),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Material(
+            color: Colors.white,
+            elevation: 3,
+            shadowColor: Colors.black26,
+            borderRadius: BorderRadius.circular(10),
+            child: IconButton(
+              tooltip: 'Expand map',
+              icon: const Icon(Icons.fullscreen, color: Color(0xFF1A1A1E)),
+              onPressed: () => _openFullscreen(context),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EventLocationFullscreenScreen extends StatelessWidget {
+  final LatLng center;
+
+  const _EventLocationFullscreenScreen({required this.center});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F3F6),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF3F3F6),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Event location',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: _eventLocationMapLayers(center, 15.5),
+      ),
+    );
+  }
+}
+
 class _EventDetailsScreen extends StatefulWidget {
-  final _EventItem event;
+  final CalendarEvent event;
 
   const _EventDetailsScreen({required this.event});
 
@@ -718,7 +730,13 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
   int? _currentUserId;
   bool _loadingOwner = true;
   bool _saving = false;
-  late _EventItem _event;
+  late CalendarEvent _event;
+
+  bool _participantsLoading = false;
+  List<Map<String, dynamic>> _participants = [];
+  bool _joinedByMe = false;
+  bool _joining = false;
+  String? _participantsError;
 
   @override
   void initState() {
@@ -739,6 +757,84 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
       if (!mounted) return;
       setState(() => _loadingOwner = false);
     }
+  }
+
+  void _setTab(int idx) {
+    setState(() => _tab = idx);
+    if (idx == 2) {
+      _loadParticipants();
+    }
+  }
+
+  Future<void> _loadParticipants({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _participantsLoading = true;
+        _participantsError = null;
+      });
+    }
+    try {
+      final data = await _apiClient.fetchEventParticipants(_event.id);
+      if (!mounted) return;
+      final raw = data['participants'];
+      final list = <Map<String, dynamic>>[];
+      if (raw is List) {
+        for (final p in raw) {
+          if (p is Map) {
+            list.add(p.map((k, v) => MapEntry('$k', v)));
+          }
+        }
+      }
+      setState(() {
+        _participants = list;
+        _joinedByMe = data['joinedByMe'] == true;
+        _participantsError = null;
+        _participantsLoading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        if (!silent) _participantsLoading = false;
+        _participantsError = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (!silent) _participantsLoading = false;
+        _participantsError = 'Could not load participants.';
+      });
+    }
+  }
+
+  Future<void> _joinEventAsParticipant() async {
+    if (_joining) return;
+    setState(() => _joining = true);
+    try {
+      await _apiClient.joinEvent(_event.id);
+      if (!mounted) return;
+      await _loadParticipants(silent: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You're on the participant list.")),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _joining = false);
+    }
+  }
+
+  bool _isOrganizer(CalendarEvent e) {
+    if (_currentUserId == null || e.createdBy == null) return false;
+    return _currentUserId == e.createdBy;
+  }
+
+  int _participantUserId(Map<String, dynamic> p) {
+    final v = p['userId'];
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse('$v') ?? 0;
   }
 
   @override
@@ -951,6 +1047,19 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
             ),
           ],
           if (_tab == 1) ...[
+            if (e.latitude != null && e.longitude != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: SizedBox(
+                  height: 220,
+                  child: _EventLocationMap(
+                    latitude: e.latitude!,
+                    longitude: e.longitude!,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             _infoCard(
               title: 'Venue',
               content: e.venue.isEmpty ? 'No venue provided.' : e.venue,
@@ -960,20 +1069,156 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
               title: 'Address',
               content: e.locationText.isEmpty ? 'No location provided.' : e.locationText,
             ),
-            if (e.latitude != null && e.longitude != null) ...[
+            if (e.latitude == null || e.longitude == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  'No map pin yet — the organizer can add a location when creating or editing the event.',
+                  style: t.bodySmall?.copyWith(
+                    color: const Color(0xFF6A6A70),
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+          ],
+          if (_tab == 2) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Participants',
+                    style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_participantsLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_participantsError != null)
+                    Text(
+                      _participantsError!,
+                      style: t.bodyMedium?.copyWith(
+                        color: const Color(0xFFB3261E),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else if (_participants.isEmpty)
+                    Text(
+                      'No participants yet.',
+                      style: t.bodyMedium?.copyWith(
+                        color: const Color(0xFF55565B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    ..._participants.map((p) {
+                      final uid = _participantUserId(p);
+                      final name = '${p['username'] ?? 'User'}';
+                      final isOrg = p['isOrganizer'] == true;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Material(
+                          color: const Color(0xFFF3F3F6),
+                          borderRadius: BorderRadius.circular(10),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: uid > 0
+                                ? () => pushUserProfile(
+                                      context,
+                                      userId: uid,
+                                      username: name,
+                                    )
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: t.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF1E1F24),
+                                          ),
+                                        ),
+                                        if (isOrg)
+                                          Text(
+                                            'Organizer',
+                                            style: t.bodySmall?.copyWith(
+                                              color: const Color(0xFFFF4A4A),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.grey.shade600,
+                                    size: 22,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+            if (!_loadingOwner && !_isOrganizer(e)) ...[
               const SizedBox(height: 12),
-              _infoCard(
-                title: 'Coordinates',
-                content:
-                    '${e.latitude!.toStringAsFixed(6)}, ${e.longitude!.toStringAsFixed(6)}',
+              SizedBox(
+                width: double.infinity,
+                child: _joinedByMe
+                    ? FilledButton.tonal(
+                        onPressed: null,
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text("You're attending"),
+                      )
+                    : FilledButton(
+                        onPressed: (_joining || _participantsLoading)
+                            ? null
+                            : _joinEventAsParticipant,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF4A4A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _joining
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Join event'),
+                      ),
               ),
             ],
           ],
-          if (_tab == 2)
-            _infoCard(
-              title: 'Participants',
-              content: 'Participants list will be shown here.',
-            ),
           if (!_loadingOwner && _canManage(e)) ...[
             const SizedBox(height: 14),
             Row(
@@ -1015,7 +1260,7 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
     );
   }
 
-  bool _canManage(_EventItem e) {
+  bool _canManage(CalendarEvent e) {
     if (_currentUserId == null || e.createdBy == null) return false;
     return _currentUserId == e.createdBy;
   }
@@ -1101,7 +1346,7 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
                           imageUrl: _event.imageUrl,
                         );
                         if (!mounted) return;
-                        final updated = _EventItem.fromJson(json);
+                        final updated = CalendarEvent.fromJson(json);
                         setState(() => _event = updated);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Event updated.')),
@@ -1165,7 +1410,7 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
     final selected = _tab == idx;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _tab = idx),
+        onTap: () => _setTab(idx),
         child: Container(
           height: 40,
           decoration: BoxDecoration(
@@ -1212,21 +1457,6 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
       ),
     );
   }
-}
-
-double? _readDouble(dynamic value) {
-  if (value == null) return null;
-  if (value is num) return value.toDouble();
-  if (value is String) return double.tryParse(value);
-  return null;
-}
-
-int? _readInt(dynamic value) {
-  if (value == null) return null;
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  if (value is String) return int.tryParse(value);
-  return null;
 }
 
 String _monthLabel(DateTime dt) {

@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../../state/inbox_badge_scope.dart';
 import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -126,6 +127,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               setState(() {
                 _conversationsFuture = _loadConversations();
               });
+              InboxBadgeScope.maybeOf(context)?.refresh();
             },
             child: ListView.builder(
               padding: EdgeInsets.zero,
@@ -142,6 +144,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: GestureDetector(
                     onTap: () async {
+                      final scope = InboxBadgeScope.maybeOf(context);
                       setState(() {
                         _readMessageIndexes.add(index);
                       });
@@ -151,11 +154,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           builder: (context) => ChatScreen(conversation: convo),
                         ),
                       );
-                      if (mounted) {
-                        setState(() {
-                          _conversationsFuture = _loadConversations();
-                        });
-                      }
+                      if (!mounted) return;
+                      scope?.refresh();
+                      setState(() {
+                        _conversationsFuture = _loadConversations();
+                      });
                     },
                     child: _ConversationCard(
                       name: convo.name,

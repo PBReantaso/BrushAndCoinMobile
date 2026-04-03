@@ -108,6 +108,7 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
       final clientName = await _apiClient.getCurrentUsername() ?? 'Client';
 
       final commissionData = await _apiClient.createCommission(
+        artistId: widget.artistId,
         title: title,
         clientName: clientName,
         description: description,

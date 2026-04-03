@@ -7,7 +7,11 @@ import '../../services/api_client.dart';
 import '../../state/app_profile_scope.dart';
 import '../../theme/content_spacing.dart';
 import '../../widgets/common/bc_app_bar.dart';
+import '../../widgets/profile/edit_profile_bottom_sheet.dart';
 import '../../widgets/profile/follow_connections_sheet.dart';
+import '../../widgets/profile/profile_avatar.dart';
+import '../../widgets/profile/profile_social_links_row.dart';
+import '../../widgets/profile/username_with_private_lock.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -61,11 +65,31 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
     var followerCount = 0;
     var followingCount = 0;
     var myUserId = 0;
+    var isPrivate = false;
+    var firstName = '';
+    var lastName = '';
+    String? avatarUrl;
+    var socialLinks = _emptySocialMap();
+    var tipsEnabled = false;
+    String? tipsUrl;
     if (user is Map) {
       apiUsername = (user['username'] as String?)?.trim() ?? '';
       followerCount = _readStatInt(user['followerCount']);
       followingCount = _readStatInt(user['followingCount']);
       myUserId = _readStatInt(user['id']);
+      final p = user['isPrivate'];
+      if (p is bool) isPrivate = p;
+      final fn = user['firstName'];
+      if (fn is String) firstName = fn.trim();
+      final ln = user['lastName'];
+      if (ln is String) lastName = ln.trim();
+      final av = user['avatarUrl'];
+      if (av is String && av.trim().isNotEmpty) avatarUrl = av.trim();
+      socialLinks = _parseSocialLinks(user['socialLinks']);
+      final te = user['tipsEnabled'];
+      if (te is bool) tipsEnabled = te;
+      final tu = user['tipsUrl'];
+      if (tu is String && tu.trim().isNotEmpty) tipsUrl = tu.trim();
     }
     return _ProfileLoadResult(
       posts: postsRaw.map(_ProfilePost.fromJson).toList(),
@@ -73,7 +97,34 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
       followerCount: followerCount,
       followingCount: followingCount,
       myUserId: myUserId,
+      isPrivate: isPrivate,
+      firstName: firstName,
+      lastName: lastName,
+      avatarUrl: avatarUrl,
+      socialLinks: socialLinks,
+      tipsEnabled: tipsEnabled,
+      tipsUrl: tipsUrl,
     );
+  }
+
+  static Map<String, String> _emptySocialMap() => {
+        'facebook': '',
+        'instagram': '',
+        'twitter': '',
+        'website': '',
+      };
+
+  static Map<String, String> _parseSocialLinks(dynamic v) {
+    const keys = ['facebook', 'instagram', 'twitter', 'website'];
+    final out = <String, String>{};
+    if (v is Map) {
+      for (final k in keys) {
+        final x = v[k];
+        out[k] = x is String ? x.trim() : '';
+      }
+      return out;
+    }
+    return _emptySocialMap();
   }
 
   int _readStatInt(dynamic v) {
@@ -110,9 +161,18 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final followerCount = data?.followerCount ?? 0;
           final followingCount = data?.followingCount ?? 0;
           final myUserId = data?.myUserId ?? 0;
-          final headerName = apiUsername.isNotEmpty
+          final isPrivate = data?.isPrivate ?? false;
+          final apiFirst = data?.firstName ?? '';
+          final apiLast = data?.lastName ?? '';
+          final fn = (apiFirst.isNotEmpty ? apiFirst : p.firstName).trim();
+          final ln = (apiLast.isNotEmpty ? apiLast : p.lastName).trim();
+          final handle = apiUsername.isNotEmpty
               ? apiUsername
-              : (localUsername.isNotEmpty ? localUsername : 'Name');
+              : (localUsername.isNotEmpty ? localUsername : '');
+          final displayName = (fn.isEmpty && ln.isEmpty)
+              ? (handle.isNotEmpty ? handle : 'Name')
+              : '$fn $ln'.trim();
+          final avatarUrl = data?.avatarUrl ?? p.avatarUrl;
           final postsCount = posts.length;
 
           return CustomScrollView(
@@ -131,11 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const CircleAvatar(
-                            radius: 44,
-                            backgroundColor: Color(0xFFD8D8DE),
-                            child: Icon(Icons.person, color: Color(0xFF6D6D75), size: 34),
-                          ),
+                          ProfileAvatar(imageUrl: avatarUrl, radius: 44),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Row(
@@ -149,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                                       ? () => showFollowConnectionsSheet(
                                             context: context,
                                             userId: myUserId,
-                                            displayUsername: headerName,
+                                            displayUsername: displayName,
                                             initialTab: 0,
                                             onClosed: _refreshProfile,
                                           )
@@ -162,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                                       ? () => showFollowConnectionsSheet(
                                             context: context,
                                             userId: myUserId,
-                                            displayUsername: headerName,
+                                            displayUsername: displayName,
                                             initialTab: 1,
                                             onClosed: _refreshProfile,
                                           )
@@ -174,13 +230,25 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        headerName,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      UsernameWithPrivateLock(
+                        username: displayName,
+                        isPrivate: isPrivate,
+                        textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: const Color(0xFF1A1A1E),
                             ),
                       ),
+                      if (handle.isNotEmpty && displayName != handle)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '@$handle',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: const Color(0xFF6C6C74),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
                       if (genderLabel.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
@@ -192,6 +260,11 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                                 ),
                           ),
                         ),
+                      ProfileSocialLinksRow(
+                        socialLinks: data?.socialLinks ?? ProfileSocialLinksRow.emptyMap(),
+                        tipsEnabled: data?.tipsEnabled ?? false,
+                        tipsUrl: data?.tipsUrl,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         'Bio',
@@ -213,7 +286,25 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                                   ),
                                   backgroundColor: Colors.white,
                                 ),
-                                onPressed: () {},
+                                onPressed: snapshot.connectionState == ConnectionState.waiting
+                                    ? null
+                                    : () async {
+                                        final saved = await showEditProfileBottomSheet(
+                                          context,
+                                          initialUsername: handle.isNotEmpty
+                                              ? handle
+                                              : (localUsername.isNotEmpty ? localUsername : ''),
+                                          initialFirstName: fn,
+                                          initialLastName: ln,
+                                          initialAvatarUrl: avatarUrl,
+                                          initialSocialLinks: data?.socialLinks,
+                                          initialTipsEnabled: data?.tipsEnabled ?? false,
+                                          initialTipsUrl: data?.tipsUrl,
+                                        );
+                                        if (saved && context.mounted) {
+                                          _refreshProfile();
+                                        }
+                                      },
                                 child: const Text(
                                   'Edit profile',
                                   style: TextStyle(
@@ -374,6 +465,13 @@ class _ProfileLoadResult {
   final int followerCount;
   final int followingCount;
   final int myUserId;
+  final bool isPrivate;
+  final String firstName;
+  final String lastName;
+  final String? avatarUrl;
+  final Map<String, String> socialLinks;
+  final bool tipsEnabled;
+  final String? tipsUrl;
 
   const _ProfileLoadResult({
     required this.posts,
@@ -381,6 +479,13 @@ class _ProfileLoadResult {
     required this.followerCount,
     required this.followingCount,
     required this.myUserId,
+    required this.isPrivate,
+    required this.firstName,
+    required this.lastName,
+    required this.avatarUrl,
+    required this.socialLinks,
+    required this.tipsEnabled,
+    required this.tipsUrl,
   });
 }
 

@@ -13,6 +13,8 @@ class UserProfile {
   String phoneNumber;
   DateTime? birthday;
   GenderOption gender;
+  /// Server: URL or `data:image/...;base64,...`. Local-only until synced.
+  String? avatarUrl;
 
   UserProfile({
     this.role = UserRole.patron,
@@ -23,6 +25,7 @@ class UserProfile {
     this.phoneNumber = '',
     this.birthday,
     this.gender = GenderOption.male,
+    this.avatarUrl,
   });
 }
 
@@ -52,6 +55,24 @@ class AppProfileState extends ChangeNotifier {
     _profile.phoneNumber = phoneNumber;
     _profile.birthday = birthday;
     _profile.gender = gender;
+    notifyListeners();
+  }
+
+  void applyServerProfile({
+    String? username,
+    String? firstName,
+    String? lastName,
+    String? avatarUrl,
+    bool clearAvatar = false,
+  }) {
+    if (username != null) _profile.username = username;
+    if (firstName != null) _profile.firstName = firstName;
+    if (lastName != null) _profile.lastName = lastName;
+    if (clearAvatar) {
+      _profile.avatarUrl = null;
+    } else if (avatarUrl != null) {
+      _profile.avatarUrl = avatarUrl;
+    }
     notifyListeners();
   }
 }

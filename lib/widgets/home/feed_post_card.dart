@@ -3,11 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../navigation/user_profile_navigation.dart';
+import '../profile/profile_avatar.dart';
 
 class FeedPostCard extends StatelessWidget {
   final int postId;
   final int authorUserId;
   final String author;
+  /// Author profile photo URL (or data URI); from API `authorAvatarUrl`.
+  final String? authorAvatarUrl;
   /// Shown under the username when [category] is empty (typically post date).
   final String subtitle;
   /// e.g. "Digital Art"; when non-empty, shown under the username instead of [subtitle].
@@ -28,6 +31,7 @@ class FeedPostCard extends StatelessWidget {
     required this.postId,
     required this.authorUserId,
     required this.author,
+    this.authorAvatarUrl,
     required this.subtitle,
     this.category = '',
     required this.title,
@@ -64,10 +68,9 @@ class FeedPostCard extends StatelessWidget {
               children: [
                 _authorTap(
                   context,
-                  child: const CircleAvatar(
+                  child: ProfileAvatar(
+                    imageUrl: authorAvatarUrl,
                     radius: 14,
-                    backgroundColor: Color(0xFFD2D2D7),
-                    child: Icon(Icons.person, color: Color(0xFF77777E), size: 16),
                   ),
                 ),
                 const SizedBox(width: 10),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,9 @@ import 'package:flutter/material.dart';
 import '../../models/app_models.dart';
 import '../../services/api_client.dart';
 import '../../widgets/profile/follow_connections_sheet.dart';
+import '../../widgets/profile/profile_avatar.dart';
+import '../../widgets/profile/profile_social_links_row.dart';
+import '../../widgets/profile/username_with_private_lock.dart';
 import '../communication/commissions/commission_request_screen.dart';
 import '../communication/messages/chat_screen.dart';
 
@@ -50,6 +54,12 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
       int followerCount = 0;
       int followingCount = 0;
       var isFollowing = false;
+      var isPrivate = false;
+      var isLocked = false;
+      var socialLinks = ProfileSocialLinksRow.emptyMap();
+      var tipsEnabled = false;
+      String? tipsUrl;
+      String? avatarUrl;
       if (user is Map) {
         final u = (user['username'] as String?)?.trim();
         if (u != null && u.isNotEmpty) username = u;
@@ -59,6 +69,24 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
         if (raw is bool) {
           isFollowing = raw;
         }
+        final privRaw = user['isPrivate'];
+        if (privRaw is bool) {
+          isPrivate = privRaw;
+        }
+        final locked = user['isLocked'];
+        if (locked is bool) {
+          isLocked = locked;
+        } else {
+          final self = myId != null && myId == widget.userId;
+          if (isPrivate && !isFollowing && !self) isLocked = true;
+        }
+        socialLinks = ProfileSocialLinksRow.parseMap(user['socialLinks']);
+        final te = user['tipsEnabled'];
+        if (te is bool) tipsEnabled = te;
+        final tu = user['tipsUrl'];
+        if (tu is String && tu.trim().isNotEmpty) tipsUrl = tu.trim();
+        final av = user['avatarUrl'];
+        if (av is String && av.trim().isNotEmpty) avatarUrl = av.trim();
       }
       final postsRaw = await _api.fetchUserPosts(widget.userId);
       final posts = postsRaw.map(_OtherPost.fromJson).toList();
@@ -71,6 +99,12 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
           followerCount: followerCount,
           followingCount: followingCount,
           isFollowing: isFollowing,
+          isPrivate: isPrivate,
+          isLocked: isLocked,
+          socialLinks: socialLinks,
+          tipsEnabled: tipsEnabled,
+          tipsUrl: tipsUrl,
+          avatarUrl: avatarUrl,
         );
         _busy = false;
       });
@@ -105,9 +139,14 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
       if (raw is bool) following = raw;
       if (!mounted) return;
       setState(() {
-        _data = data.copyWith(followerCount: fc, isFollowing: following);
+        _data = data.copyWith(
+          followerCount: fc,
+          isFollowing: following,
+          isLocked: data.isPrivate && !following && !_isSelf,
+        );
         _followActionBusy = false;
       });
+      unawaited(_bootstrap());
     } catch (e) {
       if (!mounted) return;
       setState(() => _followActionBusy = false);
@@ -133,12 +172,6 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
     }
   }
 
-  void _onTip() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tips are coming soon.')),
-    );
-  }
-
   void _onCommission() {
     Navigator.push(
       context,
@@ -159,77 +192,112 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
         backgroundColor: Colors.white,
       );
 
-  Widget _buildFollowControl() {
+  Widget _wrapFollowWidth({required bool fullWidth, required Widget child}) {
+    final wrapped = SizedBox(height: 38, child: child);
+    if (fullWidth) {
+      return SizedBox(width: double.infinity, child: wrapped);
+    }
+    return Expanded(child: wrapped);
+  }
+
+  Widget _buildFollowControl({bool fullWidth = false}) {
     final data = _data!;
     if (data.isFollowing) {
-      return Expanded(
-        child: SizedBox(
-          height: 38,
-          child: PopupMenuButton<String>(
-            offset: const Offset(0, 38),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            onSelected: (value) {
-              if (value == 'unfollow') _toggleFollow();
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'unfollow',
-                child: Text('Unfollow'),
-              ),
-            ],
-            child: Container(
-              height: 38,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFD7D7DE)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Following',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1E),
-                    ),
+      return _wrapFollowWidth(
+        fullWidth: fullWidth,
+        child: PopupMenuButton<String>(
+          offset: const Offset(0, 38),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          onSelected: (value) {
+            if (value == 'unfollow') _toggleFollow();
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'unfollow',
+              child: Text('Unfollow'),
+            ),
+          ],
+          child: Container(
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFD7D7DE)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Following',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A1E),
                   ),
-                  SizedBox(width: 2),
-                  Icon(Icons.expand_more, size: 18, color: Color(0xFF1A1A1E)),
-                ],
-              ),
+                ),
+                SizedBox(width: 2),
+                Icon(Icons.expand_more, size: 18, color: Color(0xFF1A1A1E)),
+              ],
             ),
           ),
         ),
       );
     }
-    return Expanded(
-      child: SizedBox(
-        height: 38,
-        child: OutlinedButton(
-          style: _outlinedActionStyle,
-          onPressed: _followActionBusy ? null : _toggleFollow,
-          child: _followActionBusy
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text(
-                  'Follow',
-                  style: TextStyle(
-                    color: Color(0xFF1A1A1E),
-                    fontWeight: FontWeight.w700,
-                  ),
+    return _wrapFollowWidth(
+      fullWidth: fullWidth,
+      child: OutlinedButton(
+        style: _outlinedActionStyle,
+        onPressed: _followActionBusy ? null : _toggleFollow,
+        child: _followActionBusy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text(
+                'Follow',
+                style: TextStyle(
+                  color: Color(0xFF1A1A1E),
+                  fontWeight: FontWeight.w700,
                 ),
-        ),
+              ),
       ),
     );
   }
 
   Widget _buildActionRows() {
     if (_isSelf) return const SizedBox.shrink();
+    final data = _data!;
+    if (data.isLocked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F7),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE0E0E6)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lock_outline, color: Color(0xFFFF4A4A), size: 22),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'This account is private. Follow to see posts, send messages, and request commissions.',
+                    style: TextStyle(fontSize: 13, height: 1.35, color: Color(0xFF3C3C42)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildFollowControl(fullWidth: true),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -251,23 +319,6 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              height: 38,
-              width: 42,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFD7D7DE)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  backgroundColor: Colors.white,
-                  padding: EdgeInsets.zero,
-                ),
-                onPressed: _onTip,
-                child: const Icon(Icons.attach_money, size: 22, color: Color(0xFFFF4A4A)),
               ),
             ),
           ],
@@ -303,10 +354,17 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          _data?.username ?? widget.usernameHint,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: _data != null
+            ? UsernameWithPrivateLock(
+                username: _data!.username.isNotEmpty ? _data!.username : widget.usernameHint,
+                isPrivate: _data!.isPrivate,
+                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                lockSize: 17,
+              )
+            : Text(
+                widget.usernameHint,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
       ),
       body: _buildBody(),
     );
@@ -354,10 +412,9 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const CircleAvatar(
+                    ProfileAvatar(
+                      imageUrl: data.avatarUrl,
                       radius: 44,
-                      backgroundColor: Color(0xFFD8D8DE),
-                      child: Icon(Icons.person, color: Color(0xFF6D6D75), size: 34),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -368,28 +425,32 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                           _Stat(
                             label: 'followers',
                             value: '${data.followerCount}',
-                            onTap: () => showFollowConnectionsSheet(
-                              context: context,
-                              userId: widget.userId,
-                              displayUsername: data.username,
-                              initialTab: 0,
-                              onClosed: () {
-                                if (mounted) _bootstrap();
-                              },
-                            ),
+                            onTap: data.isLocked
+                                ? null
+                                : () => showFollowConnectionsSheet(
+                                      context: context,
+                                      userId: widget.userId,
+                                      displayUsername: data.username,
+                                      initialTab: 0,
+                                      onClosed: () {
+                                        if (mounted) _bootstrap();
+                                      },
+                                    ),
                           ),
                           _Stat(
                             label: 'following',
                             value: '${data.followingCount}',
-                            onTap: () => showFollowConnectionsSheet(
-                              context: context,
-                              userId: widget.userId,
-                              displayUsername: data.username,
-                              initialTab: 1,
-                              onClosed: () {
-                                if (mounted) _bootstrap();
-                              },
-                            ),
+                            onTap: data.isLocked
+                                ? null
+                                : () => showFollowConnectionsSheet(
+                                      context: context,
+                                      userId: widget.userId,
+                                      displayUsername: data.username,
+                                      initialTab: 1,
+                                      onClosed: () {
+                                        if (mounted) _bootstrap();
+                                      },
+                                    ),
                           ),
                         ],
                       ),
@@ -397,13 +458,20 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  data.username,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                UsernameWithPrivateLock(
+                  username: data.username,
+                  isPrivate: data.isPrivate,
+                  textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFF1A1A1E),
                       ),
                 ),
+                if (!data.isLocked)
+                  ProfileSocialLinksRow(
+                    socialLinks: data.socialLinks,
+                    tipsEnabled: data.tipsEnabled,
+                    tipsUrl: data.tipsUrl,
+                  ),
                 const SizedBox(height: 8),
                 Text(
                   'Bio',
@@ -488,10 +556,17 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
             ),
           )
         else if (posts.isEmpty)
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.all(28),
-              child: Center(child: Text('No posts yet.')),
+              padding: const EdgeInsets.all(28),
+              child: Center(
+                child: Text(
+                  data.isLocked
+                      ? 'Posts are hidden for private accounts until you follow.'
+                      : 'No posts yet.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           )
         else
@@ -522,6 +597,12 @@ class _OtherProfileData {
   final int followerCount;
   final int followingCount;
   final bool isFollowing;
+  final bool isPrivate;
+  final bool isLocked;
+  final Map<String, String> socialLinks;
+  final bool tipsEnabled;
+  final String? tipsUrl;
+  final String? avatarUrl;
 
   _OtherProfileData({
     required this.username,
@@ -529,6 +610,12 @@ class _OtherProfileData {
     required this.followerCount,
     required this.followingCount,
     required this.isFollowing,
+    required this.isPrivate,
+    required this.isLocked,
+    required this.socialLinks,
+    required this.tipsEnabled,
+    this.tipsUrl,
+    this.avatarUrl,
   });
 
   _OtherProfileData copyWith({
@@ -537,6 +624,12 @@ class _OtherProfileData {
     int? followerCount,
     int? followingCount,
     bool? isFollowing,
+    bool? isPrivate,
+    bool? isLocked,
+    Map<String, String>? socialLinks,
+    bool? tipsEnabled,
+    String? tipsUrl,
+    String? avatarUrl,
   }) {
     return _OtherProfileData(
       username: username ?? this.username,
@@ -544,6 +637,12 @@ class _OtherProfileData {
       followerCount: followerCount ?? this.followerCount,
       followingCount: followingCount ?? this.followingCount,
       isFollowing: isFollowing ?? this.isFollowing,
+      isPrivate: isPrivate ?? this.isPrivate,
+      isLocked: isLocked ?? this.isLocked,
+      socialLinks: socialLinks ?? this.socialLinks,
+      tipsEnabled: tipsEnabled ?? this.tipsEnabled,
+      tipsUrl: tipsUrl ?? this.tipsUrl,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 }

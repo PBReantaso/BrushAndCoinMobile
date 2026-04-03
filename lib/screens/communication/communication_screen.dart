@@ -6,14 +6,23 @@ import './commissions/commissions_screen.dart';
 import './messages/messages_screen.dart';
 
 class CommunicationScreen extends StatefulWidget {
-  const CommunicationScreen({super.key});
+  /// 0 = Messages, 1 = Commissions
+  final int initialTabIndex;
+
+  const CommunicationScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<CommunicationScreen> createState() => _CommunicationScreenState();
 }
 
 class _CommunicationScreenState extends State<CommunicationScreen> {
-  int _selectedTab = 0;
+  late int _selectedTab;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = widget.initialTabIndex.clamp(0, 1);
+  }
 
   @override
   Widget build(BuildContext context) {

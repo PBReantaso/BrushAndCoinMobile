@@ -77,6 +77,7 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
                           postId: p.id,
                           authorUserId: p.userId,
                           author: p.authorName.isEmpty ? 'Brush&Coin' : p.authorName,
+                          authorAvatarUrl: p.authorAvatarUrl,
                           subtitle: p.createdAtText,
                           category: p.category,
                           title: p.title.isEmpty ? 'Untitled Post' : p.title,
@@ -107,6 +108,7 @@ class _TaggedPost {
   final int id;
   final int userId;
   final String authorName;
+  final String? authorAvatarUrl;
   final String title;
   final String description;
   final String category;
@@ -121,6 +123,7 @@ class _TaggedPost {
     required this.id,
     required this.userId,
     required this.authorName,
+    this.authorAvatarUrl,
     required this.title,
     required this.description,
     required this.category,
@@ -135,10 +138,12 @@ class _TaggedPost {
   factory _TaggedPost.fromJson(Map<String, dynamic> json) {
     final rawTags = json['tags'];
     final tags = rawTags is List ? rawTags.map((e) => '$e').toList() : const <String>[];
+    final av = json['authorAvatarUrl'];
     return _TaggedPost(
       id: _readInt(json['id']),
       userId: _readInt(json['userId']),
       authorName: (json['authorName'] as String?) ?? '',
+      authorAvatarUrl: av is String && av.trim().isNotEmpty ? av.trim() : null,
       title: (json['title'] as String?) ?? '',
       description: (json['description'] as String?) ?? '',
       category: (json['category'] as String?)?.trim() ?? '',

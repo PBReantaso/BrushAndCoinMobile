@@ -4,8 +4,10 @@ import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
 import '../search/tagged_posts_screen.dart';
 import '../../theme/content_spacing.dart';
+import '../../state/app_profile_scope.dart';
 import '../../widgets/common/bc_app_bar.dart';
 import '../../widgets/home/feed_post_card.dart';
+import '../../widgets/profile/profile_avatar.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -99,6 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     postId: p.id,
                     authorUserId: p.userId,
                     author: p.authorName.isEmpty ? 'Brush&Coin' : p.authorName,
+                    authorAvatarUrl: p.authorAvatarUrl,
                     subtitle: p.createdAtText,
                     category: p.category,
                     title: p.title.isEmpty ? 'Untitled Post' : p.title,
@@ -318,10 +321,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                   child: Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const CircleAvatar(
+                                      ProfileAvatar(
+                                        imageUrl: c.authorAvatarUrl,
                                         radius: 16,
-                                        backgroundColor: Color(0xFFD8D8DE),
-                                        child: Icon(Icons.person, size: 16, color: Color(0xFF707077)),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -368,6 +370,16 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               padding: EdgeInsets.fromLTRB(12, 10, 12, kb > 0 ? kb + 8 : 10),
               child: Row(
                 children: [
+                  ListenableBuilder(
+                    listenable: AppProfileScope.of(context),
+                    builder: (context, _) {
+                      final url = AppProfileScope.of(context).profile.avatarUrl;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ProfileAvatar(imageUrl: url, radius: 18),
+                      );
+                    },
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _commentController,
@@ -413,20 +425,24 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 class _PostComment {
   final int userId;
   final String authorName;
+  final String? authorAvatarUrl;
   final String comment;
   final DateTime? createdAt;
 
   const _PostComment({
     required this.userId,
     required this.authorName,
+    this.authorAvatarUrl,
     required this.comment,
     required this.createdAt,
   });
 
   factory _PostComment.fromJson(Map<String, dynamic> json) {
+    final av = json['authorAvatarUrl'];
     return _PostComment(
       userId: _readInt(json['userId']),
       authorName: (json['authorName'] as String?) ?? 'User',
+      authorAvatarUrl: av is String && av.trim().isNotEmpty ? av.trim() : null,
       comment: (json['comment'] as String?) ?? '',
       createdAt: DateTime.tryParse((json['createdAt'] as String?) ?? ''),
     );
@@ -447,6 +463,7 @@ class _FeedPost {
   final int id;
   final int userId;
   final String authorName;
+  final String? authorAvatarUrl;
   final String title;
   final String description;
   final String category;
@@ -461,6 +478,7 @@ class _FeedPost {
     required this.id,
     required this.userId,
     required this.authorName,
+    this.authorAvatarUrl,
     required this.title,
     required this.description,
     required this.category,
@@ -475,10 +493,12 @@ class _FeedPost {
   factory _FeedPost.fromJson(Map<String, dynamic> json) {
     final rawTags = json['tags'];
     final tags = rawTags is List ? rawTags.map((e) => '$e').toList() : const <String>[];
+    final av = json['authorAvatarUrl'];
     return _FeedPost(
       id: _readInt(json['id']),
       userId: _readInt(json['userId']),
       authorName: (json['authorName'] as String?) ?? '',
+      authorAvatarUrl: av is String && av.trim().isNotEmpty ? av.trim() : null,
       title: (json['title'] as String?) ?? '',
       description: (json['description'] as String?) ?? '',
       category: (json['category'] as String?)?.trim() ?? '',
@@ -493,6 +513,7 @@ class _FeedPost {
 
   _FeedPost copyWith({
     String? authorName,
+    String? authorAvatarUrl,
     String? title,
     String? description,
     String? category,
@@ -507,6 +528,7 @@ class _FeedPost {
       id: id,
       userId: userId,
       authorName: authorName ?? this.authorName,
+      authorAvatarUrl: authorAvatarUrl ?? this.authorAvatarUrl,
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,

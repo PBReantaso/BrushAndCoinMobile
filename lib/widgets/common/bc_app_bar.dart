@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../screens/notifications/notifications_screen.dart';
 import '../../screens/search/search_screen.dart';
+import '../../state/inbox_badge_scope.dart';
 
 class BcAppBar extends StatelessWidget implements PreferredSizeWidget {
   const BcAppBar({super.key});
@@ -76,12 +78,57 @@ class BcAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           const SizedBox(width: 12),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.notifications,
-              color: Color(0xFF101010),
-            ),
+          Builder(
+            builder: (context) {
+              final ctrl = InboxBadgeScope.maybeOf(context);
+              const baseIcon = Icon(
+                Icons.notifications,
+                color: Color(0xFF101010),
+              );
+              Widget bellIcon(int n) {
+                if (n <= 0) return baseIcon;
+                return Badge(
+                  label: Text(
+                    n > 99 ? '99+' : '$n',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  backgroundColor: const Color(0xFFFF4A4A),
+                  textColor: Colors.white,
+                  child: baseIcon,
+                );
+              }
+
+              if (ctrl == null) {
+                return IconButton(
+                  onPressed: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
+                  icon: baseIcon,
+                );
+              }
+
+              return ListenableBuilder(
+                listenable: ctrl,
+                builder: (context, _) {
+                  return IconButton(
+                    onPressed: () async {
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                      ctrl.refresh();
+                    },
+                    icon: bellIcon(ctrl.notificationUnread),
+                  );
+                },
+              );
+            },
           ),
           IconButton(
             onPressed: () => Navigator.of(context).pushNamed('/settings'),

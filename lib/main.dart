@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
@@ -14,8 +16,11 @@ import 'screens/home/create_post_screen.dart';
 import 'screens/home/dashboard_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'services/api_client.dart';
+import 'services/push_device_registration.dart';
 import 'state/app_profile.dart';
 import 'state/app_profile_scope.dart';
+import 'state/inbox_badge_scope.dart';
 
 class NoStretchScrollBehavior extends MaterialScrollBehavior {
   const NoStretchScrollBehavior();
@@ -36,15 +41,48 @@ void main() {
   runApp(const BrushAndCoinApp());
 }
 
-class BrushAndCoinApp extends StatelessWidget {
+class BrushAndCoinApp extends StatefulWidget {
   const BrushAndCoinApp({super.key});
+
+  @override
+  State<BrushAndCoinApp> createState() => _BrushAndCoinAppState();
+}
+
+class _BrushAndCoinAppState extends State<BrushAndCoinApp> with WidgetsBindingObserver {
+  late final InboxBadgeController _inboxBadges = InboxBadgeController();
+  Timer? _inboxBadgeTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _inboxBadges.refresh();
+    _inboxBadgeTimer = Timer.periodic(const Duration(seconds: 45), (_) => _inboxBadges.refresh());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _inboxBadgeTimer?.cancel();
+    _inboxBadges.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _inboxBadges.refresh();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = buildAppTextTheme();
     return AppProfileScope(
       notifier: AppProfileState(),
-      child: MaterialApp(
+      child: InboxBadgeScope(
+        notifier: _inboxBadges,
+        child: MaterialApp(
         title: 'Brush&Coin',
         debugShowCheckedModeBanner: false,
         scrollBehavior: const NoStretchScrollBehavior(),
@@ -111,6 +149,7 @@ class BrushAndCoinApp extends StatelessWidget {
           '/settings': (_) => const SettingsScreen(),
           '/app': (_) => const MainShell(),
         },
+        ),
       ),
     );
   }
@@ -128,6 +167,14 @@ class _MainShellState extends State<MainShell> {
   int _calendarRefreshTick = 0;
   int _homeRefreshTick = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      trySyncPushDeviceAfterLogin(ApiClient());
+    });
+  }
+
   List<Widget> get _pages => [
         DashboardScreen(key: ValueKey(_homeRefreshTick)),
         CalendarMapScreen(key: ValueKey(_calendarRefreshTick)),
@@ -139,6 +186,7 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final isHome = _currentIndex == 0;
     final isCalendar = _currentIndex == 1;
+    final inbox = InboxBadgeScope.of(context);
     return Scaffold(
       body: Stack(
         children: [
@@ -181,41 +229,79 @@ class _MainShellState extends State<MainShell> {
             ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        animationDuration: Duration.zero,
-        backgroundColor: const Color(0xFFFFFFFF),
-        indicatorColor: Colors.transparent,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      bottomNavigationBar: ListenableBuilder(
+        listenable: inbox,
+        builder: (context, _) {
+          final msgCount = inbox.messageUnread;
+          return NavigationBar(
+            animationDuration: Duration.zero,
+            backgroundColor: const Color(0xFFFFFFFF),
+            indicatorColor: Colors.transparent,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+              inbox.refresh();
+            },
+            destinations: [
+              const NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.map_outlined),
+                selectedIcon: Icon(Icons.map),
+                label: 'Calendar & Map',
+              ),
+              NavigationDestination(
+                icon: _navBadgeIcon(
+                  count: msgCount,
+                  outlined: Icons.chat_bubble_outline,
+                  filled: Icons.chat_bubble,
+                  selected: false,
+                ),
+                selectedIcon: _navBadgeIcon(
+                  count: msgCount,
+                  outlined: Icons.chat_bubble_outline,
+                  filled: Icons.chat_bubble,
+                  selected: true,
+                ),
+                label: 'Messages',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
+          );
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.map_outlined),
-            selectedIcon: Icon(Icons.map),
-            label: 'Calendar & Map',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Messages',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
   }
+}
+
+Widget _navBadgeIcon({
+  required int count,
+  required IconData outlined,
+  required IconData filled,
+  required bool selected,
+}) {
+  final icon = Icon(selected ? filled : outlined);
+  if (count <= 0) return icon;
+  final label = count > 99 ? '99+' : '$count';
+  return Badge(
+    label: Text(
+      label,
+      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+    backgroundColor: const Color(0xFFFF4A4A),
+    textColor: Colors.white,
+    child: icon,
+  );
 }
 

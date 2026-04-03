@@ -59,9 +59,15 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
 
   Future<void> _continue() async {
     final username = _usernameController.text.trim();
-    if (username.isNotEmpty) {
+    final fn = _firstNameController.text.trim();
+    final ln = _lastNameController.text.trim();
+    if (username.isNotEmpty || fn.isNotEmpty || ln.isNotEmpty) {
       try {
-        await _apiClient.updateProfile(username: username);
+        await _apiClient.updateProfile(
+          username: username.isNotEmpty ? username : null,
+          firstName: fn,
+          lastName: ln,
+        );
       } on ApiException catch (e) {
         if (e.statusCode == 409) {
           if (!mounted) return;

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/api_client.dart';
+import '../../state/notification_preferences.dart';
+import '../notifications/notifications_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,14 +13,19 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _emailNotifications = true;
-  bool _showEmail = false;
-  bool _autoPlayVideos = true;
-  bool _privateAccount = false;
+  static const _accent = Color(0xFFFF4A4A);
 
-  bool _likes = true;
-  bool _comments = true;
-  bool _newFollowers = false;
+  bool _notifPrefsLoading = true;
+  bool _notifMaster = true;
+  bool _notifMessages = true;
+  bool _notifMentions = true;
+  bool _notifCommissions = true;
+  bool _notifEvents = true;
+  bool _notifSocial = true;
+  bool _notifSystem = true;
+
+  bool _privateAccount = false;
+  bool _privateSaving = false;
 
   bool _isLoggingOut = false;
   bool _isDeletingAccount = false;
@@ -25,8 +33,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final ApiClient _apiClient = ApiClient();
 
   @override
+  void initState() {
+    super.initState();
+    _hydrateNotificationPrefs();
+    _loadAccountPrivacy();
+  }
+
+  Future<void> _loadAccountPrivacy() async {
+    try {
+      final me = await _apiClient.fetchMe();
+      final u = me['user'];
+      if (!mounted || u is! Map) return;
+      final p = u['isPrivate'];
+      if (p is bool) {
+        setState(() => _privateAccount = p);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _hydrateNotificationPrefs() async {
+    final m = await loadNotificationPrefs();
+    if (!mounted) return;
+    setState(() {
+      _notifMaster = m[NotificationPrefKeys.master] ?? true;
+      _notifMessages = m[NotificationPrefKeys.messages] ?? true;
+      _notifMentions = m[NotificationPrefKeys.mentions] ?? true;
+      _notifCommissions = m[NotificationPrefKeys.commissions] ?? true;
+      _notifEvents = m[NotificationPrefKeys.events] ?? true;
+      _notifSocial = m[NotificationPrefKeys.social] ?? true;
+      _notifSystem = m[NotificationPrefKeys.system] ?? true;
+      _notifPrefsLoading = false;
+    });
+  }
+
+  Future<void> _setNotif(String key, bool value, VoidCallback applyState) async {
+    applyState();
+    await saveNotificationPref(key, value);
+  }
+
+  bool get _notifEnabled => _notifMaster;
+
+  @override
   Widget build(BuildContext context) {
-    final accent = const Color(0xFFFF4A4A);
+    final accent = _accent;
     final t = Theme.of(context).textTheme;
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F6),
@@ -52,56 +101,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
             _Section(
-              title: 'General',
-              icon: Icons.tune_rounded,
-              accentColor: accent,
-              children: [
-                _ToggleRow(
-                  icon: Icons.mail_outline,
-                  iconColor: accent,
-                  title: 'Email Notifications',
-                  subtitle: 'Receive emails about your account activity',
-                  value: _emailNotifications,
-                  onChanged: (v) => setState(() => _emailNotifications = v),
-                ),
-                _ToggleRow(
-                  icon: Icons.lock_outline,
-                  iconColor: accent,
-                  title: 'Show Email',
-                  subtitle: 'Receive email updates about your account activity',
-                  value: _showEmail,
-                  onChanged: (v) => setState(() => _showEmail = v),
-                ),
-                _ToggleRow(
-                  icon: Icons.play_circle_outline,
-                  iconColor: accent,
-                  title: 'Auto-play Videos',
-                  subtitle: 'Receive emails about your account activity',
-                  value: _autoPlayVideos,
-                  onChanged: (v) => setState(() => _autoPlayVideos = v),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _Section(
               title: 'Account',
               icon: Icons.person_outline_rounded,
               accentColor: accent,
               children: [
                 _ChevronRow(
-                  icon: Icons.edit_outlined,
+                  icon: Icons.badge_outlined,
                   iconColor: accent,
-                  title: 'Edit Profile',
-                  subtitle: 'Receive email updates about your account activity',
-                  onTap: () {},
+                  title: 'Edit profile',
+                  subtitle: 'Username shown on posts and messages',
+                  onTap: _openEditProfile,
+                ),
+                _ChevronRow(
+                  icon: Icons.email_outlined,
+                  iconColor: accent,
+                  title: 'Email',
+                  subtitle: 'Used for sign-in and account recovery',
+                  onTap: _showEmailInfo,
                 ),
                 _ToggleRow(
-                  icon: Icons.privacy_tip_outlined,
+                  icon: Icons.lock_person_outlined,
                   iconColor: accent,
-                  title: 'Private Account',
-                  subtitle: 'Receive email updates about your account activity',
+                  title: 'Private account',
+                  subtitle:
+                      'Only followers can see your posts, DM you, or request commissions',
                   value: _privateAccount,
-                  onChanged: (v) => setState(() => _privateAccount = v),
+                  onChanged: _privateSaving
+                      ? null
+                      : (v) async {
+                          setState(() {
+                            _privateSaving = true;
+                            _privateAccount = v;
+                          });
+                          try {
+                            await _apiClient.updateProfile(isPrivate: v);
+                          } catch (e) {
+                            if (mounted) {
+                              setState(() => _privateAccount = !v);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    e is ApiException
+                                        ? e.message
+                                        : 'Could not update privacy.',
+                                  ),
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() => _privateSaving = false);
+                            }
+                          }
+                        },
                 ),
               ],
             ),
@@ -111,51 +163,209 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.notifications_none_outlined,
               accentColor: accent,
               children: [
-                _ToggleRow(
-                  icon: Icons.favorite_border_outlined,
+                if (_notifPrefsLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else ...[
+                  _ChevronRow(
+                    icon: Icons.inbox_outlined,
+                    iconColor: accent,
+                    title: 'Notification inbox',
+                    subtitle: 'Everything that has arrived for you',
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ToggleRow(
+                    icon: Icons.notifications_active_outlined,
+                    iconColor: accent,
+                    title: 'In-app notification categories',
+                    subtitle:
+                        'Saved on this device; push delivery will respect these when enabled',
+                    value: _notifMaster,
+                    onChanged: (v) async {
+                      await _setNotif(NotificationPrefKeys.master, v, () {
+                        setState(() => _notifMaster = v);
+                      });
+                    },
+                  ),
+                  _ToggleRow(
+                    icon: Icons.forum_outlined,
+                    iconColor: accent,
+                    title: 'Messages & chats',
+                    subtitle: 'New direct messages and mentions in chat',
+                    value: _notifMessages,
+                    onChanged: !_notifEnabled
+                        ? null
+                        : (v) async {
+                            await _setNotif(NotificationPrefKeys.messages, v, () {
+                              setState(() => _notifMessages = v);
+                            });
+                          },
+                  ),
+                  _ToggleRow(
+                    icon: Icons.alternate_email,
+                    iconColor: accent,
+                    title: 'Mentions',
+                    subtitle: 'When someone @tags you in a post or comment',
+                    value: _notifMentions,
+                    onChanged: !_notifEnabled
+                        ? null
+                        : (v) async {
+                            await _setNotif(NotificationPrefKeys.mentions, v, () {
+                              setState(() => _notifMentions = v);
+                            });
+                          },
+                  ),
+                  _ToggleRow(
+                    icon: Icons.palette_outlined,
+                    iconColor: accent,
+                    title: 'Commissions',
+                    subtitle: 'Requests, acceptances, and status changes',
+                    value: _notifCommissions,
+                    onChanged: !_notifEnabled
+                        ? null
+                        : (v) async {
+                            await _setNotif(NotificationPrefKeys.commissions, v, () {
+                              setState(() => _notifCommissions = v);
+                            });
+                          },
+                  ),
+                  _ToggleRow(
+                    icon: Icons.event_outlined,
+                    iconColor: accent,
+                    title: 'Events from people you follow',
+                    subtitle: 'New or updated events by artists you follow',
+                    value: _notifEvents,
+                    onChanged: !_notifEnabled
+                        ? null
+                        : (v) async {
+                            await _setNotif(NotificationPrefKeys.events, v, () {
+                              setState(() => _notifEvents = v);
+                            });
+                          },
+                  ),
+                  _ToggleRow(
+                    icon: Icons.favorite_border,
+                    iconColor: accent,
+                    title: 'Social',
+                    subtitle: 'Likes, comments, and new followers',
+                    value: _notifSocial,
+                    onChanged: !_notifEnabled
+                        ? null
+                        : (v) async {
+                            await _setNotif(NotificationPrefKeys.social, v, () {
+                              setState(() => _notifSocial = v);
+                            });
+                          },
+                  ),
+                  _ToggleRow(
+                    icon: Icons.campaign_outlined,
+                    iconColor: accent,
+                    title: 'System & announcements',
+                    subtitle: 'Important updates from Brush&Coin',
+                    value: _notifSystem,
+                    onChanged: !_notifEnabled
+                        ? null
+                        : (v) async {
+                            await _setNotif(NotificationPrefKeys.system, v, () {
+                              setState(() => _notifSystem = v);
+                            });
+                          },
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            _Section(
+              title: 'Appearance',
+              icon: Icons.palette_outlined,
+              accentColor: accent,
+              children: [
+                _ChevronRow(
+                  icon: Icons.light_mode_outlined,
                   iconColor: accent,
-                  title: 'Likes',
-                  subtitle: 'Receive email updates about your account activity',
-                  value: _likes,
-                  onChanged: (v) => setState(() => _likes = v),
+                  title: 'Theme',
+                  subtitle: 'Light (system dark mode coming later)',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Only Light theme is available for now.'),
+                      ),
+                    );
+                  },
                 ),
-                _ToggleRow(
-                  icon: Icons.chat_bubble_outline,
+              ],
+            ),
+            const SizedBox(height: 16),
+            _Section(
+              title: 'About',
+              icon: Icons.info_outline_rounded,
+              accentColor: accent,
+              children: [
+                _ChevronRow(
+                  icon: Icons.tag_outlined,
                   iconColor: accent,
-                  title: 'Comments',
-                  subtitle: 'Receive email updates about your account activity',
-                  value: _comments,
-                  onChanged: (v) => setState(() => _comments = v),
+                  title: 'Version',
+                  subtitle: 'Brush&Coin mobile · 1.0.0',
+                  onTap: () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'Brush&Coin',
+                      applicationVersion: '1.0.0',
+                      applicationIcon: const Icon(Icons.brush, color: _accent, size: 32),
+                      children: const [
+                        SizedBox(height: 8),
+                        Text(
+                          'Commission and community tools for independent artists.',
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                _ToggleRow(
-                  icon: Icons.person_add_alt_outlined,
+                _ChevronRow(
+                  icon: Icons.gavel_outlined,
                   iconColor: accent,
-                  title: 'New Followers',
-                  subtitle: 'Receive email updates about your account activity',
-                  value: _newFollowers,
-                  onChanged: (v) => setState(() => _newFollowers = v),
+                  title: 'Open-source licenses',
+                  subtitle: 'Third-party packages used in this app',
+                  onTap: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (ctx) => LicensePage(
+                          applicationName: 'Brush&Coin',
+                          applicationVersion: '1.0.0',
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
             const SizedBox(height: 16),
             _Section(
               title: 'Security',
-              icon: Icons.security_outlined,
+              icon: Icons.shield_outlined,
               accentColor: accent,
               children: [
                 _ChevronRow(
-                  icon: Icons.password_outlined,
+                  icon: Icons.password_rounded,
                   iconColor: accent,
                   title: 'Change Password',
                   subtitle: '',
-                  onTap: () {},
+                  onTap: _openChangePasswordInfo,
                 ),
                 _ChevronRow(
-                  icon: Icons.history_rounded,
+                  icon: Icons.manage_history_outlined,
                   iconColor: accent,
                   title: 'Login Activity',
                   subtitle: '',
-                  onTap: () {},
+                  onTap: _openLoginActivity,
                 ),
               ],
             ),
@@ -166,11 +376,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               accentColor: accent,
               children: [
                 _ChevronRow(
-                  icon: Icons.help_outline,
+                  icon: Icons.help_outline_rounded,
                   iconColor: accent,
                   title: 'Help Center',
                   subtitle: '',
-                  onTap: () {},
+                  onTap: _openHelpCenter,
                 ),
                 _ChevronRow(
                   icon: Icons.privacy_tip_outlined,
@@ -209,6 +419,341 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _openEditProfile() async {
+    String? error;
+    final controller = TextEditingController(
+      text: await _apiClient.getCurrentUsername() ?? '',
+    );
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: StatefulBuilder(
+            builder: (ctx, setSheet) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Edit profile',
+                          style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                    TextField(
+                      controller: controller,
+                      textInputAction: TextInputAction.done,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Username',
+                        errorText: error,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () async {
+                        final u = controller.text.trim();
+                        if (u.length < 2) {
+                          setSheet(() => error = 'Username must be at least 2 characters.');
+                          return;
+                        }
+                        setSheet(() => error = null);
+                        try {
+                          await _apiClient.updateProfile(username: u);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Profile updated.')),
+                            );
+                          }
+                        } on ApiException catch (e) {
+                          setSheet(() => error = e.message);
+                        } catch (_) {
+                          setSheet(() => error = 'Could not save username.');
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _accent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+    controller.dispose();
+  }
+
+  Future<void> _showEmailInfo() async {
+    try {
+      final me = await _apiClient.fetchMe();
+      final email = (me['user'] as Map?)?['email']?.toString() ?? '—';
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Email'),
+          content: Text(
+            'Signed in as:\n$email\n\nEmail is set when you create your account. '
+            'Contact support to change it in a future release.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load account details.')),
+      );
+    }
+  }
+
+  void _openChangePasswordInfo() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.password_rounded, color: _accent),
+                const SizedBox(width: 10),
+                Text(
+                  'Change password',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'In-app password changes are not available yet. Log out and use your recovery flow, '
+              'or reach out through Help Center so we can point you to the right steps.',
+              style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _accent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Got it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openLoginActivity() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.manage_history_outlined, color: _accent),
+                const SizedBox(width: 10),
+                Text(
+                  'Login activity',
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'We will list signed-in devices and recent sessions here. '
+              'For now, logging out on this device ends your local session.',
+              style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(height: 1.4),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.smartphone_outlined),
+              title: const Text('This device'),
+              subtitle: const Text('Active · Brush&Coin app'),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _accent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openHelpCenter() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final h = MediaQuery.of(ctx).size.height * 0.72;
+        return Container(
+          height: h,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 8, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close),
+                    ),
+                    Text(
+                      'Help Center',
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  children: [
+                    Text(
+                      'Getting started',
+                      style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                            color: _accent,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '• Complete your profile username so people can find and mention you.\n'
+                      '• Post work with clear commission availability if you take client jobs.\n'
+                      '• Use Messages for ongoing chats and Commissions for formal requests.',
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Commissions & payments',
+                      style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                            color: _accent,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '• Start a request from an artist profile; you can track status under Commissions.\n'
+                      '• Always confirm scope, deadline, and payment method in writing before paying.',
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Events & feed',
+                      style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                            color: _accent,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '• Artists you follow can surface new events in your notifications.\n'
+                      '• @mention someone in a post or comment to send them an in-app heads-up.',
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Still stuck?',
+                      style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                            color: _accent,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Use Privacy Policy / Terms below for legal questions. For product issues, note your account email and what you were trying to do — your team can wire a support address here later.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -758,7 +1303,7 @@ class _ToggleRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   const _ToggleRow({
     required this.icon,
@@ -773,6 +1318,7 @@ class _ToggleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const subtitleColor = Color(0xFF9B9B9F);
     final t = Theme.of(context).textTheme;
+    final muted = onChanged == null;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -785,6 +1331,10 @@ class _ToggleRow extends StatelessWidget {
         dense: true,
         value: value,
         onChanged: onChanged,
+        activeTrackColor: iconColor,
+        activeThumbColor: Colors.white,
+        inactiveTrackColor: const Color(0xFFE8E8EC),
+        inactiveThumbColor: const Color(0xFF9E9EA3),
         secondary: Icon(icon, color: iconColor),
         title: Text(
           title,
@@ -794,7 +1344,11 @@ class _ToggleRow extends StatelessWidget {
             ? null
             : Text(
                 subtitle,
-                style: t.bodySmall?.copyWith(color: subtitleColor),
+                style: t.bodySmall?.copyWith(
+                  color: muted
+                      ? subtitleColor.withValues(alpha: 0.72)
+                      : subtitleColor,
+                ),
               ),
       ),
     );

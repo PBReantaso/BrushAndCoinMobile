@@ -151,6 +151,7 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> createCommission({
+    required int artistId,
     required String title,
     required String clientName,
     String description = '',
@@ -164,6 +165,7 @@ class ApiClient {
     final response = await _authorizedPost(
       '/commissions',
       body: {
+        'artistId': artistId,
         'title': title,
         'clientName': clientName,
         'description': description,
@@ -199,6 +201,65 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> fetchConversationMessages(int conversationId) async {
     final json = await _getJsonProtected('/messages/$conversationId');
     return _readList(json['messages']);
+  }
+
+  Future<({List<Map<String, dynamic>> notifications, int? nextBeforeId})> fetchNotifications({
+    int limit = 30,
+    int? beforeId,
+  }) async {
+    final q = StringBuffer('/notifications?limit=$limit');
+    if (beforeId != null) {
+      q.write('&before=$beforeId');
+    }
+    final json = await _getJsonProtected(q.toString());
+    final raw = json['notifications'];
+    final list = raw is List
+        ? raw.whereType<Map>().map((e) => e.map((k, v) => MapEntry('$k', v))).toList()
+        : <Map<String, dynamic>>[];
+    final next = json['nextBeforeId'];
+    int? nextBefore;
+    if (next is int) {
+      nextBefore = next;
+    } else if (next is String) {
+      nextBefore = int.tryParse(next);
+    }
+    return (notifications: list, nextBeforeId: nextBefore);
+  }
+
+  Future<int> fetchUnreadNotificationCount() async {
+    final json = await _getJsonProtected('/notifications/unread-count');
+    final c = json['count'];
+    if (c is int) return c;
+    if (c is String) return int.tryParse(c) ?? 0;
+    return 0;
+  }
+
+  /// Conversations where the latest message is from someone else and not yet read (opened).
+  Future<int> fetchUnreadMessageCount() async {
+    final json = await _getJsonProtected('/messages/unread-count');
+    final c = json['count'];
+    if (c is int) return c;
+    if (c is String) return int.tryParse(c) ?? 0;
+    return 0;
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    final response = await _authorizedPatch('/notifications/$id/read', body: const {});
+    _throwIfError(response);
+  }
+
+  /// Register FCM (or other) token when push is configured. Safe to call with no token (no-op).
+  Future<void> registerPushDevice({required String token, required String platform}) async {
+    final response = await _authorizedPost(
+      '/push-devices',
+      body: {'token': token, 'platform': platform},
+    );
+    _throwIfError(response);
+  }
+
+  Future<void> unregisterPushDevice(String token) async {
+    final response = await _authorizedDeleteWithBody('/push-devices', body: {'token': token});
+    _throwIfError(response);
   }
 
   Future<Map<String, dynamic>> sendMessage(int conversationId, String content) async {
@@ -338,11 +399,48 @@ class ApiClient {
     return _readList(json['users']);
   }
 
-  Future<void> updateProfile({required String username}) async {
-    final response = await _authorizedPost(
-      '/auth/profile',
-      body: {'username': username},
-    );
+  Future<void> updateProfile({
+    String? username,
+    bool? isPrivate,
+    String? firstName,
+    String? lastName,
+    String? avatarUrl,
+    bool clearAvatar = false,
+    Map<String, String>? socialLinks,
+    bool? tipsEnabled,
+    String? tipsUrl,
+    bool clearTipsUrl = false,
+  }) async {
+    if (username == null &&
+        isPrivate == null &&
+        firstName == null &&
+        lastName == null &&
+        avatarUrl == null &&
+        !clearAvatar &&
+        socialLinks == null &&
+        tipsEnabled == null &&
+        tipsUrl == null &&
+        !clearTipsUrl) {
+      throw ApiException('Nothing to update.');
+    }
+    final body = <String, dynamic>{};
+    if (username != null) body['username'] = username;
+    if (isPrivate != null) body['isPrivate'] = isPrivate;
+    if (firstName != null) body['firstName'] = firstName;
+    if (lastName != null) body['lastName'] = lastName;
+    if (avatarUrl != null) {
+      body['avatarUrl'] = avatarUrl;
+    } else if (clearAvatar) {
+      body['avatarUrl'] = null;
+    }
+    if (socialLinks != null) body['socialLinks'] = socialLinks;
+    if (tipsEnabled != null) body['tipsEnabled'] = tipsEnabled;
+    if (tipsUrl != null) {
+      body['tipsUrl'] = tipsUrl;
+    } else if (clearTipsUrl) {
+      body['tipsUrl'] = null;
+    }
+    final response = await _authorizedPost('/auth/profile', body: body);
     final json = _throwIfErrorAndReadJson(response);
     await _setSessionFromJson(json, rememberMe: true);
   }
@@ -429,6 +527,24 @@ class ApiClient {
   Future<void> deleteEvent(int eventId) async {
     final response = await _authorizedDelete('/events/$eventId');
     _throwIfError(response);
+  }
+
+  /// Returns [participants] and whether the current user is already in the list.
+  Future<Map<String, dynamic>> fetchEventParticipants(int eventId) async {
+    final json = await _getJsonProtected('/events/$eventId/participants');
+    final raw = json['participants'];
+    final list = raw is List
+        ? raw.whereType<Map>().map((e) => e.map((k, v) => MapEntry('$k', v))).toList()
+        : <Map<String, dynamic>>[];
+    return {
+      'participants': list,
+      'joinedByMe': json['joinedByMe'] == true,
+    };
+  }
+
+  Future<Map<String, dynamic>> joinEvent(int eventId) async {
+    final response = await _authorizedPost('/events/$eventId/join', body: const {});
+    return _throwIfErrorAndReadJson(response);
   }
 
   Future<int?> getCurrentUserId() async {
@@ -547,6 +663,64 @@ class ApiClient {
       response = await _httpClient.delete(
         _uri(path),
         headers: {'Authorization': 'Bearer $refreshed'},
+      );
+    }
+    return response;
+  }
+
+  Future<http.Response> _authorizedDeleteWithBody(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final token = await _getAccessTokenOrThrow();
+    var response = await _httpClient.delete(
+      _uri(path),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 401) {
+      await _refreshAccessToken();
+      final refreshed = await _getAccessTokenOrThrow();
+      response = await _httpClient.delete(
+        _uri(path),
+        headers: {
+          'Authorization': 'Bearer $refreshed',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+    }
+    return response;
+  }
+
+  Future<http.Response> _authorizedPatch(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final token = await _getAccessTokenOrThrow();
+    var response = await _httpClient.patch(
+      _uri(path),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 401) {
+      await _refreshAccessToken();
+      final refreshed = await _getAccessTokenOrThrow();
+      response = await _httpClient.patch(
+        _uri(path),
+        headers: {
+          'Authorization': 'Bearer $refreshed',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
       );
     }
     return response;
