@@ -1,0 +1,82 @@
+import 'package:flutter/material.dart';
+
+class CommissionPaymentSuccessScreen extends StatelessWidget {
+  const CommissionPaymentSuccessScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F4),
+      appBar: AppBar(
+        leading: BackButton(color: Colors.black),
+        title: const Text('Payment', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.white,
+        elevation: 1,
+      ),
+      body: Center(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.88,
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                offset: const Offset(0, 8),
+                blurRadius: 20,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 94,
+                height: 94,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFFF4A4A),
+                ),
+                child: const Center(
+                  child: Icon(Icons.check, color: Colors.white, size: 52),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Success!',
+                style: TextStyle(
+                  color: Color(0xFFD32F2F),
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Your payment was successful.\nThe receipt for the commission has been sent to your email.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, height: 1.4, color: Color(0xFF5A5A5A)),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD32F2F),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
+                  child: const Text('Go back', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

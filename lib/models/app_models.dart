@@ -2,8 +2,10 @@ import 'package:timezone/timezone.dart' as tz;
 
 enum ProjectStatus {
   inquiry,
+  accepted,
   inProgress,
   completed,
+  rejected,
 }
 
 class Artist {
@@ -27,34 +29,60 @@ class Artist {
 }
 
 class Project {
+  final int? id;
   final String title;
   final String clientName;
   final ProjectStatus status;
   final List<Milestone> milestones;
+  final String description;
+  final double budget;
+  final String? deadline;
+  final String specialRequirements;
+  final bool isUrgent;
+  final List<String> referenceImages;
+  final double totalAmount;
 
   Project({
+    this.id,
     required this.title,
     required this.clientName,
     required this.status,
     this.milestones = const [],
+    this.description = '',
+    this.budget = 0,
+    this.deadline,
+    this.specialRequirements = '',
+    this.isUrgent = false,
+    this.referenceImages = const [],
+    this.totalAmount = 0,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
     final rawMilestones = json['milestones'];
     return Project(
+      id: json['id'] as int?,
       title: (json['title'] as String?) ?? '',
       clientName: (json['clientName'] as String?) ?? '',
       status: _projectStatusFromString((json['status'] as String?) ?? ''),
       milestones: rawMilestones is List
           ? rawMilestones
-                .whereType<Map>()
-                .map(
-                  (entry) => Milestone.fromJson(
-                    entry.map((k, v) => MapEntry('$k', v)),
-                  ),
-                )
-                .toList()
+              .whereType<Map>()
+              .map(
+                (entry) => Milestone.fromJson(
+                  entry.map((k, v) => MapEntry('$k', v)),
+                ),
+              )
+              .toList()
           : const [],
+      description: (json['description'] as String?) ?? '',
+      budget: _readDouble(json['budget']),
+      deadline: (json['deadline'] as String?),
+      specialRequirements: (json['specialRequirements'] as String?) ?? '',
+      isUrgent: (json['isUrgent'] as bool?) ?? false,
+      referenceImages: json['referenceImages'] is List
+          ? (json['referenceImages'] as List).whereType<String>().toList()
+          : const [],
+      totalAmount: _readDouble(json['totalAmount']),
     );
   }
 }
@@ -85,7 +113,8 @@ class Conversation {
   final String? lastMessage;
   final tz.TZDateTime? lastMessageDate;
 
-  Conversation({this.id, required this.name, this.lastMessage, this.lastMessageDate});
+  Conversation(
+      {this.id, required this.name, this.lastMessage, this.lastMessageDate});
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     final phLocation = tz.getLocation('Asia/Manila');
@@ -94,7 +123,8 @@ class Conversation {
       name: (json['name'] as String?) ?? '',
       lastMessage: json['lastMessage'] as String?,
       lastMessageDate: json['lastMessageDate'] != null
-          ? tz.TZDateTime.from(DateTime.parse(json['lastMessageDate'] as String), phLocation)
+          ? tz.TZDateTime.from(
+              DateTime.parse(json['lastMessageDate'] as String), phLocation)
           : null,
     );
   }
@@ -123,7 +153,8 @@ class Message {
       senderId: (json['senderId'] as num?)?.toInt() ?? 0,
       content: (json['content'] as String?) ?? '',
       createdAt: json['createdAt'] != null
-          ? tz.TZDateTime.from(DateTime.parse(json['createdAt'] as String), phLocation)
+          ? tz.TZDateTime.from(
+              DateTime.parse(json['createdAt'] as String), phLocation)
           : tz.TZDateTime.now(phLocation),
     );
   }
@@ -154,10 +185,14 @@ ProjectStatus _projectStatusFromString(String raw) {
   switch (raw) {
     case 'inquiry':
       return ProjectStatus.inquiry;
+    case 'accepted':
+      return ProjectStatus.accepted;
     case 'inProgress':
       return ProjectStatus.inProgress;
     case 'completed':
       return ProjectStatus.completed;
+    case 'rejected':
+      return ProjectStatus.rejected;
     default:
       return ProjectStatus.inquiry;
   }

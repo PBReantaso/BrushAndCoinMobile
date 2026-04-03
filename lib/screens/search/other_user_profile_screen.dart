@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_models.dart';
 import '../../services/api_client.dart';
+import '../communication/commissions/commission_request_screen.dart';
 import '../communication/messages/chat_screen.dart';
 
 class OtherUserProfileScreen extends StatefulWidget {
@@ -138,8 +139,14 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
   }
 
   void _onCommission() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Commission requests are coming soon.')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CommissionRequestScreen(
+          artistId: widget.userId,
+          artistName: _data?.username ?? widget.usernameHint,
+        ),
+      ),
     );
   }
 
