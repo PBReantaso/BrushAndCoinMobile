@@ -35,6 +35,8 @@ class Project {
   final ProjectStatus status;
   final List<Milestone> milestones;
   final String description;
+  final String? lastMessage;
+  final bool hasUnreadMessages;
   final double budget;
   final String? deadline;
   final String specialRequirements;
@@ -49,6 +51,8 @@ class Project {
     required this.status,
     this.milestones = const [],
     this.description = '',
+    this.lastMessage,
+    this.hasUnreadMessages = false,
     this.budget = 0,
     this.deadline,
     this.specialRequirements = '',
@@ -75,6 +79,12 @@ class Project {
               .toList()
           : const [],
       description: (json['description'] as String?) ?? '',
+      lastMessage: (json['lastMessage'] as String?) ??
+          (json['messagePreview'] as String?),
+      hasUnreadMessages: (json['hasUnreadMessages'] as bool?) ??
+          (json['unreadMessages'] as bool?) ??
+          (json['hasNewMessages'] as bool?) ??
+          false,
       budget: _readDouble(json['budget']),
       deadline: (json['deadline'] as String?),
       specialRequirements: (json['specialRequirements'] as String?) ?? '',
@@ -112,9 +122,14 @@ class Conversation {
   final String name;
   final String? lastMessage;
   final tz.TZDateTime? lastMessageDate;
+  final bool hasUnreadMessages;
 
   Conversation(
-      {this.id, required this.name, this.lastMessage, this.lastMessageDate});
+      {this.id,
+      required this.name,
+      this.lastMessage,
+      this.lastMessageDate,
+      this.hasUnreadMessages = false});
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     final phLocation = tz.getLocation('Asia/Manila');
@@ -126,6 +141,9 @@ class Conversation {
           ? tz.TZDateTime.from(
               DateTime.parse(json['lastMessageDate'] as String), phLocation)
           : null,
+      hasUnreadMessages: (json['hasUnreadMessages'] as bool?) ??
+          (json['unreadMessages'] as bool?) ??
+          false,
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import 'commission_work_view_screen.dart';
 
 class CommissionDetailScreen extends StatefulWidget {
   final Project commission;
@@ -23,6 +24,29 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   bool _isProcessing = false;
   bool _isSubmittingArtwork = false;
   List<XFile> _submittedArtworks = [];
+  String? _currentUsername;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUsername();
+  }
+
+  Future<void> _loadCurrentUsername() async {
+    try {
+      final username = await _apiClient.getCurrentUsername();
+      if (mounted) {
+        setState(() => _currentUsername = username);
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  bool get _isCommissioner {
+    if (_currentUsername == null) return false;
+    return widget.commission.clientName == _currentUsername;
+  }
 
   double get _urgencyFee =>
       widget.commission.isUrgent ? widget.commission.budget * 0.20 : 0;
@@ -128,13 +152,24 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
     }
   }
 
+  Future<void> _openCommissionWorkView() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CommissionWorkViewScreen(commission: widget.commission),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(color: Colors.black),
-        title: const Text('Commissioner Request',
-            style: TextStyle(color: const Color(0xFFD32F2F))),
+        title: _isCommissioner
+            ? _buildCommissionerHeader()
+            : const Text('Commissioner Request',
+                style: TextStyle(color: const Color(0xFFD32F2F))),
         backgroundColor: Colors.white,
         elevation: 1,
       ),
@@ -216,117 +251,237 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (widget.commission.status == ProjectStatus.inquiry) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
+                  if (_isCommissioner) ...[
+                    _buildCommissionerActionSection(),
+                  ] else ...[
+                    if (widget.commission.status == ProjectStatus.inquiry) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black,
+                              ),
+                              onPressed: _isProcessing ? null : _reject,
+                              child: const Text('Reject'),
                             ),
-                            onPressed: _isProcessing ? null : _reject,
-                            child: const Text('Reject'),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD32F2F),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD32F2F),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: _isProcessing ? null : _accept,
+                              child: _isProcessing
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Accept',
+                                      style:
+                                          TextStyle(fontWeight: FontWeight.bold)),
                             ),
-                            onPressed: _isProcessing ? null : _accept,
-                            child: _isProcessing
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Accept',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
                           ),
+                        ],
+                      ),
+                    ] else if (widget.commission.status ==
+                            ProjectStatus.accepted ||
+                        widget.commission.status == ProjectStatus.inProgress) ...[
+                      Text(
+                        'Artwork Submission',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildArtworkUploader(),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed:
+                            _isSubmittingArtwork ? null : () => _submitArtwork(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD32F2F),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                      ],
-                    ),
-                  ] else if (widget.commission.status ==
-                          ProjectStatus.accepted ||
-                      widget.commission.status == ProjectStatus.inProgress) ...[
-                    Text(
-                      'Artwork Submission',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        child: _isSubmittingArtwork
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                widget.commission.status == ProjectStatus.accepted
+                                    ? 'Start Work'
+                                    : 'Mark Complete',
+                                style:
+                                    const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ] else if (widget.commission.status ==
+                        ProjectStatus.completed) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'This commission is completed. Great work!',
+                          style: TextStyle(
+                            color: Color(0xFF2E7D32),
                             fontWeight: FontWeight.bold,
                           ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildArtworkUploader(),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed:
-                          _isSubmittingArtwork ? null : () => _submitArtwork(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD32F2F),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: _isSubmittingArtwork
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              widget.commission.status == ProjectStatus.accepted
-                                  ? 'Start Work'
-                                  : 'Mark Complete',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                    ),
-                  ] else if (widget.commission.status ==
-                      ProjectStatus.completed) ...[
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        'This commission is completed. Great work!',
-                        style: TextStyle(
-                          color: Color(0xFF2E7D32),
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                  ] else if (widget.commission.status ==
-                      ProjectStatus.rejected) ...[
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFEBEE),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        'This commission was rejected.',
-                        style: TextStyle(
-                          color: Color(0xFFD32F2F),
-                          fontWeight: FontWeight.bold,
+                    ] else if (widget.commission.status ==
+                        ProjectStatus.rejected) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'This commission was rejected.',
+                          style: TextStyle(
+                            color: Color(0xFFD32F2F),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCommissionerHeader() {
+    return Row(
+      children: [
+        const Text(
+          'Commission',
+          style: TextStyle(color: Color(0xFFD32F2F)),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _openCommissionWorkView,
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.remove_red_eye,
+              size: 18,
+              color: Color(0xFF666666),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommissionerActionSection() {
+    final status = widget.commission.status;
+    String actionText;
+    Color actionColor;
+    String? buttonText;
+    VoidCallback? onPressed;
+
+    switch (status) {
+      case ProjectStatus.inquiry:
+        actionText = 'Waiting for artist to accept your commission request.';
+        actionColor = const Color(0xFFFFA000);
+        break;
+      case ProjectStatus.accepted:
+        actionText = 'Your commission has been accepted! The artist will start working soon.';
+        actionColor = const Color(0xFF1976D2);
+        buttonText = 'View Work';
+        onPressed = _openCommissionWorkView;
+        break;
+      case ProjectStatus.inProgress:
+        actionText = 'The artist is currently working on your commission.';
+        actionColor = const Color(0xFFFFA000);
+        buttonText = 'View Work';
+        onPressed = _openCommissionWorkView;
+        break;
+      case ProjectStatus.completed:
+        actionText = 'Your commission has been completed! Check out the final artwork.';
+        actionColor = const Color(0xFF2E7D32);
+        buttonText = 'View Work';
+        onPressed = _openCommissionWorkView;
+        break;
+      case ProjectStatus.rejected:
+        actionText = 'Unfortunately, your commission request was rejected.';
+        actionColor = const Color(0xFFD32F2F);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Commission Status',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: actionColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: actionColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              actionText,
+              style: TextStyle(color: actionColor, fontWeight: FontWeight.w500),
+            ),
+          ),
+          if (buttonText != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: onPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD32F2F),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  buttonText,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

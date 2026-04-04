@@ -126,7 +126,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
                       child: Center(
                         child: FilledButton(
                           onPressed: () {
@@ -155,7 +156,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
                       child: const Center(child: Text('No messages yet.')),
                     ),
                   );
@@ -204,7 +206,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       snippet: snippet,
                       dateLabel: dateLabel,
                       avatarColor: avatarColor,
-                      isRead: _readMessageIndexes.contains(index),
+                      isRead: !convo.hasUnreadMessages ||
+                          _readMessageIndexes.contains(index),
                     ),
                   ),
                 );

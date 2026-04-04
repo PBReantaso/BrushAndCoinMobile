@@ -470,8 +470,16 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 ),
           ),
           value: _tipsEnabled,
-          activeThumbColor: const Color(0xFFFF4A4A),
-          activeTrackColor: const Color(0xFFFF4A4A).withValues(alpha: 0.35),
+          thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+            return states.contains(WidgetState.selected)
+                ? const Color(0xFFFF4A4A)
+                : null;
+          }),
+          trackColor: WidgetStateProperty.resolveWith<Color?>((states) {
+            return states.contains(WidgetState.selected)
+                ? const Color(0xFFFF4A4A).withValues(alpha: 0.35)
+                : null;
+          }),
           onChanged: _saving
               ? null
               : (v) {
