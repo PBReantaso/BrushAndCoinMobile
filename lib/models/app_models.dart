@@ -168,16 +168,25 @@ class Conversation {
   final String? lastMessage;
   final tz.TZDateTime? lastMessageDate;
   final bool hasUnreadMessages;
+  /// When set, this thread is the commission-scoped chat (not a generic DM).
+  final int? commissionId;
 
   Conversation(
       {this.id,
       required this.name,
       this.lastMessage,
       this.lastMessageDate,
-      this.hasUnreadMessages = false});
+      this.hasUnreadMessages = false,
+      this.commissionId});
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     final phLocation = tz.getLocation('Asia/Manila');
+    final rawCid = json['commissionId'];
+    final commissionId = rawCid is int
+        ? rawCid
+        : rawCid is num
+            ? rawCid.toInt()
+            : int.tryParse('$rawCid');
     return Conversation(
       id: json['id'] as int?,
       name: (json['name'] as String?) ?? '',
@@ -187,6 +196,7 @@ class Conversation {
               DateTime.parse(json['lastMessageDate'] as String), phLocation)
           : null,
       hasUnreadMessages: _conversationHasUnread(json),
+      commissionId: commissionId != null && commissionId > 0 ? commissionId : null,
     );
   }
 }
