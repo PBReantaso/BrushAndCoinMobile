@@ -9,8 +9,8 @@ class ProjectCard extends StatelessWidget {
 
   String get statusLabel {
     switch (project.status) {
-      case ProjectStatus.inquiry:
-        return 'Inquiry';
+      case ProjectStatus.pending:
+        return 'Pending';
       case ProjectStatus.accepted:
         return 'Accepted';
       case ProjectStatus.inProgress:
@@ -24,7 +24,7 @@ class ProjectCard extends StatelessWidget {
 
   Color statusColor(BuildContext context) {
     switch (project.status) {
-      case ProjectStatus.inquiry:
+      case ProjectStatus.pending:
         return Colors.orange;
       case ProjectStatus.accepted:
         return Colors.blueAccent;

@@ -17,8 +17,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
   final _apiClient = ApiClient();
   late Future<List<Conversation>> _conversationsFuture;
 
-  // Simple in-memory tracking of which message indices have been read.
-  final Set<int> _readMessageIndexes = {};
+  /// Opened conversations; list order changes so we key by conversation id, not index.
+  final Set<int> _optimisticReadConversationIds = {};
 
   @override
   void initState() {
@@ -71,6 +71,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
     Color(0xFF8A6D5A),
   ];
 
+  /// 12h time in the same zone as [date] (Manila for API timestamps).
+  String _formatTime12h(tz.TZDateTime date) {
+    var h = date.hour;
+    final m = date.minute;
+    final isPm = h >= 12;
+    if (h > 12) h -= 12;
+    if (h == 0) h = 12;
+    final mm = m.toString().padLeft(2, '0');
+    final suffix = isPm ? 'pm' : 'am';
+    return '$h:$mm $suffix';
+  }
+
   String _formatDate(tz.TZDateTime date) {
     final phLocation = tz.getLocation('Asia/Manila');
     final now = tz.TZDateTime.now(phLocation);
@@ -78,6 +90,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     if (difference.inMinutes < 1) {
       return 'Just now';
+    } else if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
+      return _formatTime12h(date);
     } else if (difference.inMinutes < 60) {
       return '${difference.inMinutes} min ago';
     } else if (difference.inHours < 24) {
@@ -186,9 +202,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   child: GestureDetector(
                     onTap: () async {
                       final scope = InboxBadgeScope.maybeOf(context);
-                      setState(() {
-                        _readMessageIndexes.add(index);
-                      });
+                      final cid = convo.id;
+                      if (cid != null) {
+                        setState(() {
+                          _optimisticReadConversationIds.add(cid);
+                        });
+                      }
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -207,7 +226,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       dateLabel: dateLabel,
                       avatarColor: avatarColor,
                       isRead: !convo.hasUnreadMessages ||
-                          _readMessageIndexes.contains(index),
+                          (convo.id != null &&
+                              _optimisticReadConversationIds.contains(convo.id!)),
                     ),
                   ),
                 );
@@ -221,6 +241,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
 }
 
 class _ConversationCard extends StatelessWidget {
+  static const _unreadBg = Color(0xFFFFF0F0);
+  static const _unreadBar = Color(0xFFFF9A9A);
+  static const _readBg = Color(0xFFF2F2F4);
+  static const _readBar = Color(0xFFB0B0B6);
+
   final String name;
   final String snippet;
   final String dateLabel;
@@ -237,68 +262,75 @@ class _ConversationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: avatarColor,
-            child: const Icon(Icons.person, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF111111),
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  snippet,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF6E6E6E),
-                        height: 1.2,
-                        fontWeight: FontWeight.w400,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    final bg = isRead ? _readBg : _unreadBg;
+    final bar = isRead ? _readBar : _unreadBar;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: ColoredBox(
+        color: bg,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                dateLabel,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: const Color(0xFF9B9B9F),
-                      fontWeight: FontWeight.w600,
-                    ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: avatarColor,
+                        child: const Icon(Icons.person, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF111111),
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              snippet,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF6E6E6E),
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          dateLabel,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: const Color(0xFF9B9B9F),
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                width: 7,
+                color: bar,
               ),
             ],
           ),
-          const SizedBox(width: 10),
-          Container(
-            width: 6,
-            height: 76,
-            decoration: BoxDecoration(
-              color: isRead ? const Color(0xFF101010) : const Color(0xFFFF4A4A),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

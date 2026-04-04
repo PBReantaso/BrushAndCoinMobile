@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../messages/chat_screen.dart';
 import 'commission_work_view_screen.dart';
 
 class CommissionDetailScreen extends StatefulWidget {
@@ -62,6 +63,25 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
         widget.commission.id ?? 0,
         'accepted',
       );
+      if (!mounted) return;
+      final cid = widget.commission.id;
+      final patronId = widget.commission.patronId;
+      if (cid != null && patronId != null) {
+        final convJson =
+            await _apiClient.startConversation(patronId, commissionId: cid);
+        final conv = Conversation.fromJson(convJson);
+        if (!mounted) return;
+        await Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              conversation: conv,
+              commissionId: cid,
+            ),
+          ),
+        );
+        return;
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Commission accepted!')),
@@ -122,6 +142,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
 
   Future<void> _submitArtwork() async {
     if (_isSubmittingArtwork || widget.commission.id == null) return;
+    if (widget.commission.status != ProjectStatus.accepted) return;
     if (_submittedArtworks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -134,13 +155,12 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
     try {
       await _apiClient.updateCommissionStatus(
         widget.commission.id!,
-        widget.commission.status == ProjectStatus.accepted
-            ? 'inProgress'
-            : 'completed',
+        'inProgress',
       );
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Artwork submitted successfully.')),
+        const SnackBar(content: Text('Work submitted. Waiting for patron approval.')),
       );
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -152,11 +172,50 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
     }
   }
 
+  Future<void> _openCommissionChat() async {
+    final cid = widget.commission.id;
+    final patronId = widget.commission.patronId;
+    final artistId = widget.commission.artistId;
+    if (cid == null || patronId == null || artistId == null) return;
+    final other = _isCommissioner ? artistId : patronId;
+    try {
+      final convJson =
+          await _apiClient.startConversation(other, commissionId: cid);
+      final conv = Conversation.fromJson(convJson);
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            conversation: conv,
+            commissionId: cid,
+          ),
+        ),
+      );
+    } catch (e) {
+      final msg = e is ApiException ? e.message : 'Could not open chat.';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
+  String _workStageKeyFromRound(int round) {
+    if (round <= 1) return 'first';
+    if (round == 2) return 'second';
+    return 'last';
+  }
+
   Future<void> _openCommissionWorkView() async {
-    await Navigator.push(
+    final key = _workStageKeyFromRound(widget.commission.submissionRound);
+    await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => CommissionWorkViewScreen(commission: widget.commission),
+        builder: (context) => CommissionWorkViewScreen(
+          commission: widget.commission,
+          workStageKey: key,
+          patronReviewMode: _isCommissioner &&
+              widget.commission.status == ProjectStatus.inProgress,
+        ),
       ),
     );
   }
@@ -254,7 +313,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                   if (_isCommissioner) ...[
                     _buildCommissionerActionSection(),
                   ] else ...[
-                    if (widget.commission.status == ProjectStatus.inquiry) ...[
+                    if (widget.commission.status == ProjectStatus.pending) ...[
                       Row(
                         children: [
                           Expanded(
@@ -291,9 +350,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                           ),
                         ],
                       ),
-                    ] else if (widget.commission.status ==
-                            ProjectStatus.accepted ||
-                        widget.commission.status == ProjectStatus.inProgress) ...[
+                    ] else if (widget.commission.status == ProjectStatus.accepted) ...[
                       Text(
                         'Artwork Submission',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -319,13 +376,31 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : Text(
-                                widget.commission.status == ProjectStatus.accepted
-                                    ? 'Start Work'
-                                    : 'Mark Complete',
-                                style:
-                                    const TextStyle(fontWeight: FontWeight.bold),
+                            : const Text(
+                                'Submit first work',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                      ),
+                    ] else if (widget.commission.status ==
+                        ProjectStatus.inProgress) ...[
+                      Text(
+                        'Work submitted',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Status stays in progress until the patron accepts the final work. Use commission chat to coordinate.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: const Color(0xFF6E6E6E),
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _openCommissionChat,
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('Open commission chat'),
                       ),
                     ] else if (widget.commission.status ==
                         ProjectStatus.completed) ...[
@@ -405,7 +480,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
     VoidCallback? onPressed;
 
     switch (status) {
-      case ProjectStatus.inquiry:
+      case ProjectStatus.pending:
         actionText = 'Waiting for artist to accept your commission request.';
         actionColor = const Color(0xFFFFA000);
         break;
@@ -416,7 +491,8 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
         onPressed = _openCommissionWorkView;
         break;
       case ProjectStatus.inProgress:
-        actionText = 'The artist is currently working on your commission.';
+        actionText =
+            'Review the final work. When you accept, the commission completes and escrow releases payment to the artist.';
         actionColor = const Color(0xFFFFA000);
         buttonText = 'View Work';
         onPressed = _openCommissionWorkView;

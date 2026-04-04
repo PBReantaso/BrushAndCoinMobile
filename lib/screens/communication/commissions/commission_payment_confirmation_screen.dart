@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/app_models.dart';
+import '../../../navigation/user_profile_navigation.dart';
 import '../../../services/api_client.dart';
 import 'commission_payment_success_screen.dart';
 
 class CommissionPaymentConfirmationScreen extends StatefulWidget {
+  /// Artist being commissioned (for returning to their profile after pay / failure).
+  final int artistUserId;
+  final String artistUsername;
+
   final int commissionId;
   final String commissionTitle;
   final double baseBudget;
@@ -16,6 +21,8 @@ class CommissionPaymentConfirmationScreen extends StatefulWidget {
 
   const CommissionPaymentConfirmationScreen({
     super.key,
+    required this.artistUserId,
+    required this.artistUsername,
     required this.commissionId,
     required this.commissionTitle,
     required this.baseBudget,
@@ -49,7 +56,44 @@ class _CommissionPaymentConfirmationScreenState
     }
   }
 
-  Future<void> _processPayment(BuildContext context) async {
+  void _returnToArtistProfile(BuildContext context) {
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+      return;
+    }
+    if (widget.artistUserId > 0) {
+      pushUserProfile(
+        context,
+        userId: widget.artistUserId,
+        username: widget.artistUsername.isNotEmpty
+            ? widget.artistUsername
+            : 'Artist',
+      );
+    }
+  }
+
+  void _showPaymentFailedThenReturn(String message) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Payment could not be confirmed'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              if (mounted) _returnToArtistProfile(context);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _processPayment() async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
 
@@ -59,7 +103,10 @@ class _CommissionPaymentConfirmationScreenState
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => const CommissionPaymentSuccessScreen(),
+          builder: (context) => CommissionPaymentSuccessScreen(
+            artistUserId: widget.artistUserId,
+            artistUsername: widget.artistUsername,
+          ),
         ),
       );
     } catch (e) {
@@ -67,8 +114,7 @@ class _CommissionPaymentConfirmationScreenState
           ? e.message
           : 'Could not process payment. Please try again.';
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      _showPaymentFailedThenReturn(message);
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -121,7 +167,7 @@ class _CommissionPaymentConfirmationScreenState
             Text(_paymentMethodLabel, style: t.titleMedium),
             const Spacer(),
             ElevatedButton(
-              onPressed: _isProcessing ? null : () => _processPayment(context),
+              onPressed: _isProcessing ? null : _processPayment,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD32F2F),
                 padding: const EdgeInsets.symmetric(vertical: 14),

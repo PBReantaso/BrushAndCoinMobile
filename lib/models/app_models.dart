@@ -1,7 +1,7 @@
 import 'package:timezone/timezone.dart' as tz;
 
 enum ProjectStatus {
-  inquiry,
+  pending,
   accepted,
   inProgress,
   completed,
@@ -30,6 +30,10 @@ class Artist {
 
 class Project {
   final int? id;
+  final int? patronId;
+  final int? artistId;
+  /// Artist handle for patron "Sent" list and chat labels (from API).
+  final String? artistUsername;
   final String title;
   final String clientName;
   final ProjectStatus status;
@@ -43,9 +47,17 @@ class Project {
   final bool isUrgent;
   final List<String> referenceImages;
   final double totalAmount;
+  final DateTime? createdAt;
+  final DateTime? lastMessageAt;
+  final DateTime? completedAt;
+  /// Increments each time the artist moves accepted → in progress (submission round).
+  final int submissionRound;
 
   Project({
     this.id,
+    this.patronId,
+    this.artistId,
+    this.artistUsername,
     required this.title,
     required this.clientName,
     required this.status,
@@ -59,12 +71,19 @@ class Project {
     this.isUrgent = false,
     this.referenceImages = const [],
     this.totalAmount = 0,
+    this.createdAt,
+    this.lastMessageAt,
+    this.completedAt,
+    this.submissionRound = 0,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
     final rawMilestones = json['milestones'];
     return Project(
       id: json['id'] as int?,
+      patronId: (json['patronId'] as num?)?.toInt(),
+      artistId: (json['artistId'] as num?)?.toInt(),
+      artistUsername: _optionalTrimmedString(json['artistUsername']),
       title: (json['title'] as String?) ?? '',
       clientName: (json['clientName'] as String?) ?? '',
       status: _projectStatusFromString((json['status'] as String?) ?? ''),
@@ -93,8 +112,24 @@ class Project {
           ? (json['referenceImages'] as List).whereType<String>().toList()
           : const [],
       totalAmount: _readDouble(json['totalAmount']),
+      createdAt: _readDateTime(json['createdAt']),
+      lastMessageAt: _readDateTime(json['lastMessageAt']),
+      completedAt: _readDateTime(json['completedAt']),
+      submissionRound: (json['submissionRound'] as num?)?.toInt() ?? 0,
     );
   }
+}
+
+String? _optionalTrimmedString(dynamic v) {
+  if (v is! String) return null;
+  final t = v.trim();
+  return t.isEmpty ? null : t;
+}
+
+DateTime? _readDateTime(dynamic v) {
+  if (v == null) return null;
+  if (v is String && v.isNotEmpty) return DateTime.tryParse(v);
+  return null;
 }
 
 class Milestone {
@@ -115,6 +150,16 @@ class Milestone {
       isReleased: (json['isReleased'] as bool?) ?? false,
     );
   }
+}
+
+bool _conversationHasUnread(Map<String, dynamic> json) {
+  final explicit = json['hasUnreadMessages'] as bool?;
+  if (explicit != null) return explicit;
+  final legacyUnread = json['unreadMessages'] as bool?;
+  if (legacyUnread != null) return legacyUnread;
+  final hasRead = json['hasRead'] as bool?;
+  if (hasRead != null) return !hasRead;
+  return false;
 }
 
 class Conversation {
@@ -141,9 +186,7 @@ class Conversation {
           ? tz.TZDateTime.from(
               DateTime.parse(json['lastMessageDate'] as String), phLocation)
           : null,
-      hasUnreadMessages: (json['hasUnreadMessages'] as bool?) ??
-          (json['unreadMessages'] as bool?) ??
-          false,
+      hasUnreadMessages: _conversationHasUnread(json),
     );
   }
 }
@@ -201,8 +244,9 @@ class PaymentMethod {
 
 ProjectStatus _projectStatusFromString(String raw) {
   switch (raw) {
+    case 'pending':
     case 'inquiry':
-      return ProjectStatus.inquiry;
+      return ProjectStatus.pending;
     case 'accepted':
       return ProjectStatus.accepted;
     case 'inProgress':
@@ -212,7 +256,7 @@ ProjectStatus _projectStatusFromString(String raw) {
     case 'rejected':
       return ProjectStatus.rejected;
     default:
-      return ProjectStatus.inquiry;
+      return ProjectStatus.pending;
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
@@ -67,7 +68,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
         final status = project.status;
         switch (_status) {
           case _CommissionStatus.pending:
-            if (status != ProjectStatus.inquiry) return false;
+            if (status != ProjectStatus.pending) return false;
             break;
           case _CommissionStatus.accepted:
               if (status != ProjectStatus.accepted || project.milestones.isNotEmpty) return false;
@@ -146,14 +147,14 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
     }
 
     switch (project.status) {
-      case ProjectStatus.inquiry:
+      case ProjectStatus.pending:
         return 'Pending';
       case ProjectStatus.accepted:
         return 'Accepted';
       case ProjectStatus.completed:
         return 'Completed';
       case ProjectStatus.rejected:
-        return 'Rejected';
+        return 'Failed';
       case ProjectStatus.inProgress:
         return 'In progress';
     }
@@ -165,7 +166,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
     }
 
     switch (project.status) {
-      case ProjectStatus.inquiry:
+      case ProjectStatus.pending:
         return const Color(0xFFFF4A4A);
       case ProjectStatus.accepted:
         return const Color(0xFF1976D2);
@@ -178,36 +179,38 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
     }
   }
 
-  Color _commissionCardBackground(Project project) {
-    if (_isProjectInProgress(project)) {
-      return const Color(0xFFFFEBEA);
-    }
-
-    switch (project.status) {
-      case ProjectStatus.inquiry:
-        return Colors.white;
-      case ProjectStatus.accepted:
-        return const Color(0xFFF4F8FF);
-      case ProjectStatus.completed:
-        return Colors.white;
-      case ProjectStatus.rejected:
-        return const Color(0xFFF5F5F5);
-      case ProjectStatus.inProgress:
-        return const Color(0xFFFFEBEA);
-    }
+  String _commissionPreviewLine(Project project) {
+    final m = project.lastMessage;
+    if (m != null && m.trim().isNotEmpty) return m.trim();
+    return '...';
   }
 
-  String _commissionSubtitle(Project project) {
-    if (project.lastMessage != null && project.lastMessage!.isNotEmpty) {
-      return project.lastMessage!;
+  String _commissionCardTime(Project project) {
+    DateTime? anchor;
+    switch (project.status) {
+      case ProjectStatus.pending:
+        anchor = project.createdAt;
+        break;
+      case ProjectStatus.accepted:
+      case ProjectStatus.inProgress:
+        anchor = project.lastMessageAt ?? project.createdAt;
+        break;
+      case ProjectStatus.completed:
+        anchor = project.completedAt ?? project.lastMessageAt ?? project.createdAt;
+        break;
+      case ProjectStatus.rejected:
+        anchor = project.lastMessageAt ?? project.createdAt;
+        break;
     }
-    if (project.description.isNotEmpty) {
-      return project.description;
+    if (anchor == null) return '—';
+    final local = anchor.toLocal();
+    final now = DateTime.now();
+    if (local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day) {
+      return DateFormat.jm().format(local);
     }
-    if (project.title.isNotEmpty) {
-      return project.title;
-    }
-    return 'Commission No.';
+    return DateFormat('MM/dd/yyyy').format(local);
   }
 
   @override
@@ -282,16 +285,20 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
                             }
                           },
                           child: _CommissionCard(
-                            title: commission.clientName,
-                            subtitle: _commissionSubtitle(commission),
+                            cardTitleUsername: _direction == _CommissionDirection.sent
+                                ? (commission.artistUsername != null &&
+                                        commission.artistUsername!.isNotEmpty
+                                    ? '@${commission.artistUsername}'
+                                    : '...')
+                                : commission.clientName,
+                            previewLine: _commissionPreviewLine(commission),
+                            commissionNo: commission.id != null
+                                ? 'Commission No#${commission.id}'
+                                : 'Commission No#',
+                            timeLabel: _commissionCardTime(commission),
                             statusLabel: _displayStatusLabel(commission),
                             statusColor: _displayStatusColor(commission),
-                            backgroundColor: _commissionCardBackground(commission),
                             isUnread: commission.hasUnreadMessages,
-                            date: commission.deadline ??
-                                (commission.id != null
-                                    ? 'Commission No. ${commission.id}'
-                                    : 'Commission No.'),
                           ),
                         ),
                       );
@@ -371,7 +378,7 @@ class _CommissionStatusDropdown extends StatelessWidget {
       _CommissionStatus.accepted: 'Accepted',
       _CommissionStatus.inProgress: 'In progress',
       _CommissionStatus.completed: 'Completed',
-      _CommissionStatus.rejected: 'Rejected',
+      _CommissionStatus.rejected: 'Failed',
     };
 
     return InputDecorator(
@@ -406,99 +413,116 @@ class _CommissionStatusDropdown extends StatelessWidget {
 }
 
 class _CommissionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
+  static const _unreadBg = Color(0xFFFFEBEB);
+  static const _unreadBar = Color(0xFFFF9A9A);
+  static const _readBg = Color(0xFFF5F5F6);
+  static const _readBar = Color(0xFFB0B0B6);
+
+  final String cardTitleUsername;
+  final String previewLine;
+  final String commissionNo;
+  final String timeLabel;
   final String statusLabel;
   final Color statusColor;
-  final Color backgroundColor;
   final bool isUnread;
-  final String? date;
 
   const _CommissionCard({
-    required this.title,
-    required this.subtitle,
+    required this.cardTitleUsername,
+    required this.previewLine,
+    required this.commissionNo,
+    required this.timeLabel,
     required this.statusLabel,
     required this.statusColor,
-    required this.backgroundColor,
-    this.isUnread = false,
-    this.date,
+    required this.isUnread,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: Colors.black12,
-            child: const Icon(Icons.brush, color: Color(0xFF111111), size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: t.titleSmall?.copyWith(
-                    fontWeight: isUnread ? FontWeight.w900 : FontWeight.w800,
-                    color: const Color(0xFF111111),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: t.bodySmall?.copyWith(
-                    color: const Color(0xFF4A4A4A),
-                    height: 1.25,
-                    fontWeight: isUnread ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                ),
-                if (date != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    date!,
-                    style: t.labelSmall?.copyWith(
-                      color: const Color(0xFF9B9B9F),
-                      fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    final bg = isUnread ? _unreadBg : _readBg;
+    final bar = isUnread ? _unreadBar : _readBar;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: ColoredBox(
+        color: bg,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                statusLabel,
-                style: t.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: Colors.black12,
+                        child: const Icon(Icons.person, color: Color(0xFF111111), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cardTitleUsername,
+                              style: t.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF111111),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              previewLine,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.bodySmall?.copyWith(
+                                color: const Color(0xFF4A4A4A),
+                                height: 1.25,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              commissionNo,
+                              style: t.labelSmall?.copyWith(
+                                color: const Color(0xFF9B9B9F),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            timeLabel,
+                            style: t.labelSmall?.copyWith(
+                              color: const Color(0xFF9B9B9F),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            statusLabel,
+                            style: t.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: statusColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              Container(width: 7, color: bar),
             ],
           ),
-          const SizedBox(width: 10),
-          Container(
-            width: 6,
-            height: 76,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
