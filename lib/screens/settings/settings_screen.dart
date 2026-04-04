@@ -1331,10 +1331,16 @@ class _ToggleRow extends StatelessWidget {
         dense: true,
         value: value,
         onChanged: onChanged,
-        activeTrackColor: iconColor,
-        activeThumbColor: Colors.white,
-        inactiveTrackColor: const Color(0xFFE8E8EC),
-        inactiveThumbColor: const Color(0xFF9E9EA3),
+        thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          return states.contains(WidgetState.selected)
+              ? Colors.white
+              : const Color(0xFF9E9EA3);
+        }),
+        trackColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          return states.contains(WidgetState.selected)
+              ? iconColor
+              : const Color(0xFFE8E8EC);
+        }),
         secondary: Icon(icon, color: iconColor),
         title: Text(
           title,
