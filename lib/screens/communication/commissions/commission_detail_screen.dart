@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
-import '../messages/chat_screen.dart';
+import 'commission_chat_screen.dart';
 import 'commission_work_view_screen.dart';
 
 class CommissionDetailScreen extends StatefulWidget {
@@ -66,22 +66,22 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
       if (!mounted) return;
       final cid = widget.commission.id;
       final patronId = widget.commission.patronId;
-      if (cid != null && patronId != null) {
-        final convJson =
-            await _apiClient.startConversation(patronId, commissionId: cid);
-        final conv = Conversation.fromJson(convJson);
-        if (!mounted) return;
-        await Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(
-              conversation: conv,
-              commissionId: cid,
+        if (cid != null && patronId != null) {
+          final convJson =
+              await _apiClient.startConversation(patronId, commissionId: cid);
+          final conv = Conversation.fromJson(convJson);
+          if (!mounted) return;
+          await Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CommissionChatScreen(
+                conversation: conv,
+                commissionId: cid,
+              ),
             ),
-          ),
-        );
-        return;
-      }
+          );
+          return;
+        }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Commission accepted!')),
@@ -186,7 +186,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ChatScreen(
+          builder: (context) => CommissionChatScreen(
             conversation: conv,
             commissionId: cid,
           ),

@@ -125,7 +125,7 @@ class _MessagesScreenContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MessagesScreen();
+    return MessagesScreen();
   }
 }
 
@@ -134,6 +134,6 @@ class _CommissionsScreenContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CommissionsScreen();
+    return CommissionsScreen();
   }
 }
