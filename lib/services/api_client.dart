@@ -150,6 +150,15 @@ class ApiClient {
     return _readList(json['commissions']);
   }
 
+  Future<Map<String, dynamic>> fetchCommission(int id) async {
+    final json = await _getJsonProtected('/commissions/$id');
+    final c = json['commission'];
+    if (c is Map) {
+      return c.map((k, v) => MapEntry('$k', v));
+    }
+    throw ApiException('Commission not found.');
+  }
+
   Future<Map<String, dynamic>> createCommission({
     required int artistId,
     required String title,
@@ -275,10 +284,17 @@ class ApiClient {
     throw ApiException('Unexpected response format.');
   }
 
-  Future<Map<String, dynamic>> startConversation(int otherUserId) async {
+  Future<Map<String, dynamic>> startConversation(
+    int otherUserId, {
+    int? commissionId,
+  }) async {
+    final body = <String, dynamic>{'otherUserId': otherUserId};
+    if (commissionId != null) {
+      body['commissionId'] = commissionId;
+    }
     final response = await _authorizedPost(
       '/conversations/start',
-      body: {'otherUserId': otherUserId},
+      body: body,
     );
     final json = _throwIfErrorAndReadJson(response);
     final conversation = json['conversation'];

@@ -121,18 +121,23 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
         totalAmount: _totalAmount,
       );
 
-      final conversation = await _apiClient.startConversation(widget.artistId);
+      final commissionId = (commissionData['id'] as int?) ?? 0;
+
+      final conversation = await _apiClient.startConversation(
+        widget.artistId,
+        commissionId: commissionId > 0 ? commissionId : null,
+      );
       final conversationId = conversation['id'] as int?;
       if (conversationId != null && description.isNotEmpty) {
         await _apiClient.sendMessage(conversationId, description);
       }
 
       if (!mounted) return;
-
-      final commissionId = (commissionData['id'] as int?) ?? 0;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => CommissionPaymentConfirmationScreen(
+            artistUserId: widget.artistId,
+            artistUsername: widget.artistName,
             commissionId: commissionId,
             commissionTitle: title,
             baseBudget: budget,

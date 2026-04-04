@@ -1,7 +1,31 @@
 import 'package:flutter/material.dart';
 
+import '../../../navigation/user_profile_navigation.dart';
+
 class CommissionPaymentSuccessScreen extends StatelessWidget {
-  const CommissionPaymentSuccessScreen({super.key});
+  final int artistUserId;
+  final String artistUsername;
+
+  const CommissionPaymentSuccessScreen({
+    super.key,
+    this.artistUserId = 0,
+    this.artistUsername = '',
+  });
+
+  void _exitToArtistProfile(BuildContext context) {
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+      return;
+    }
+    if (artistUserId > 0) {
+      pushUserProfile(
+        context,
+        userId: artistUserId,
+        username: artistUsername.isNotEmpty ? artistUsername : 'Artist',
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -9,7 +33,10 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F4),
       appBar: AppBar(
-        leading: BackButton(color: Colors.black),
+        leading: BackButton(
+          color: Colors.black,
+          onPressed: () => _exitToArtistProfile(context),
+        ),
         title: const Text('Payment', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 1,
@@ -70,9 +97,7 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  onPressed: () {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
+                  onPressed: () => _exitToArtistProfile(context),
                   child: Text(
                     'Go back',
                     style: t.titleMedium?.copyWith(fontWeight: FontWeight.bold),
