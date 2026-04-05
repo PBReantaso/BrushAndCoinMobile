@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../services/api_client.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 import '../../state/notification_preferences.dart';
 import '../notifications/notifications_screen.dart';
 
@@ -76,42 +77,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final accent = _accent;
-    final t = Theme.of(context).textTheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F6),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF3F3F6),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back),
-          color: Colors.black,
+          icon: const Icon(Icons.arrow_back, color: BcColors.ink),
         ),
-        title: Text(
-          'Settings',
-          style: t.titleLarge?.copyWith(
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.2,
-          ),
-        ),
+        title: Text('Settings', style: bcPushedScreenTitleStyle(context)),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(
+            kScreenHorizontalPadding,
+            8,
+            kScreenHorizontalPadding,
+            24,
+          ),
           children: [
             _Section(
               title: 'Account',
               icon: Icons.person_outline_rounded,
               accentColor: accent,
               children: [
-                _ChevronRow(
-                  icon: Icons.badge_outlined,
-                  iconColor: accent,
-                  title: 'Edit profile',
-                  subtitle: 'Username shown on posts and messages',
-                  onTap: _openEditProfile,
-                ),
                 _ChevronRow(
                   icon: Icons.email_outlined,
                   iconColor: accent,
@@ -422,103 +416,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _openEditProfile() async {
-    String? error;
-    final controller = TextEditingController(
-      text: await _apiClient.getCurrentUsername() ?? '',
-    );
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: StatefulBuilder(
-            builder: (ctx, setSheet) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Edit profile',
-                          style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    ),
-                    TextField(
-                      controller: controller,
-                      textInputAction: TextInputAction.done,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: 'Username',
-                        errorText: error,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () async {
-                        final u = controller.text.trim();
-                        if (u.length < 2) {
-                          setSheet(() => error = 'Username must be at least 2 characters.');
-                          return;
-                        }
-                        setSheet(() => error = null);
-                        try {
-                          await _apiClient.updateProfile(username: u);
-                          if (ctx.mounted) Navigator.pop(ctx);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Profile updated.')),
-                            );
-                          }
-                        } on ApiException catch (e) {
-                          setSheet(() => error = e.message);
-                        } catch (_) {
-                          setSheet(() => error = 'Could not save username.');
-                        }
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _accent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-    controller.dispose();
-  }
-
   Future<void> _showEmailInfo() async {
     try {
       final me = await _apiClient.fetchMe();
@@ -557,7 +454,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+        padding: const EdgeInsets.fromLTRB(
+          kScreenHorizontalPadding,
+          24,
+          kScreenHorizontalPadding,
+          28,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,7 +511,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+        padding: const EdgeInsets.fromLTRB(
+          kScreenHorizontalPadding,
+          24,
+          kScreenHorizontalPadding,
+          28,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,7 +582,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 8, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  kScreenHorizontalPadding,
+                  8,
+                  kScreenHorizontalPadding,
+                  0,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -694,7 +606,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(height: 1),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(
+                    kScreenHorizontalPadding,
+                    12,
+                    kScreenHorizontalPadding,
+                    24,
+                  ),
                   children: [
                     Text(
                       'Getting started',
@@ -792,7 +709,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    const EdgeInsets.symmetric(
+                      horizontal: kScreenHorizontalPadding,
+                      vertical: 16,
+                    ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -941,7 +861,10 @@ void _showTermsOfService(BuildContext context) {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                horizontal: kScreenHorizontalPadding,
+                vertical: 10,
+              ),
               child: Row(
                 children: [
                   IconButton(
@@ -962,7 +885,10 @@ void _showTermsOfService(BuildContext context) {
             Expanded(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(
+                      horizontal: kScreenHorizontalPadding,
+                      vertical: 8,
+                    ),
                 child: const SingleChildScrollView(
                   child: _TermsOfServiceContent(),
                 ),
@@ -991,7 +917,10 @@ void _showPrivacyPolicy(BuildContext context) {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                horizontal: kScreenHorizontalPadding,
+                vertical: 10,
+              ),
               child: Row(
                 children: [
                   IconButton(
@@ -1012,7 +941,10 @@ void _showPrivacyPolicy(BuildContext context) {
             Expanded(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(
+                      horizontal: kScreenHorizontalPadding,
+                      vertical: 8,
+                    ),
                 child: const SingleChildScrollView(
                   child: _PrivacyPolicyContent(),
                 ),
@@ -1318,13 +1250,23 @@ class _ToggleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const subtitleColor = Color(0xFF9B9B9F);
     final t = Theme.of(context).textTheme;
-    final muted = onChanged == null;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final enabled = onChanged != null;
+    final disabledFg = onSurface.withValues(alpha: 0.38);
+    final iconResolved = enabled ? iconColor : disabledFg;
+    final titleResolved = enabled ? onSurface : disabledFg;
+    final subtitleResolved = enabled
+        ? subtitleColor
+        : subtitleColor.withValues(alpha: 0.65);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: enabled ? Colors.white : const Color(0xFFF5F5F7),
         borderRadius: BorderRadius.circular(12),
+        border: enabled
+            ? null
+            : Border.all(color: const Color(0xFFE8E8EC)),
       ),
       child: SwitchListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 0),
@@ -1332,29 +1274,38 @@ class _ToggleRow extends StatelessWidget {
         value: value,
         onChanged: onChanged,
         thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return states.contains(WidgetState.selected)
+                ? const Color(0xFFE0E0E0)
+                : const Color(0xFF9E9E9E);
+          }
           return states.contains(WidgetState.selected)
               ? Colors.white
               : const Color(0xFF9E9EA3);
         }),
         trackColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return states.contains(WidgetState.selected)
+                ? const Color(0xFFBDBDBD)
+                : const Color(0xFFE8E8EC);
+          }
           return states.contains(WidgetState.selected)
               ? iconColor
               : const Color(0xFFE8E8EC);
         }),
-        secondary: Icon(icon, color: iconColor),
+        secondary: Icon(icon, color: iconResolved),
         title: Text(
           title,
-          style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: t.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: titleResolved,
+          ),
         ),
         subtitle: subtitle.isEmpty
             ? null
             : Text(
                 subtitle,
-                style: t.bodySmall?.copyWith(
-                  color: muted
-                      ? subtitleColor.withValues(alpha: 0.72)
-                      : subtitleColor,
-                ),
+                style: t.bodySmall?.copyWith(color: subtitleResolved),
               ),
       ),
     );

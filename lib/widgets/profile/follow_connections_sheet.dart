@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../navigation/user_profile_navigation.dart';
+import '../../theme/content_spacing.dart';
 import '../../services/api_client.dart';
+import 'profile_avatar.dart';
 
 /// Instagram-style bottom sheet: drag handle, close, username title, Followers / Following tabs, user list.
 Future<void> showFollowConnectionsSheet({
@@ -186,13 +188,21 @@ class _FollowConnectionsSheetState extends State<_FollowConnectionsSheet>
 class _FollowUser {
   final int id;
   final String username;
+  final String? avatarUrl;
 
-  _FollowUser({required this.id, required this.username});
+  _FollowUser({
+    required this.id,
+    required this.username,
+    this.avatarUrl,
+  });
 
   factory _FollowUser.fromJson(Map<String, dynamic> json) {
+    final rawAvatar = json['avatarUrl'] ?? json['avatar_url'];
+    final url = rawAvatar == null ? '' : '${rawAvatar}'.trim();
     return _FollowUser(
       id: _readInt(json['id']),
       username: (json['username'] as String?)?.trim() ?? '',
+      avatarUrl: url.isEmpty ? null : url,
     );
   }
 }
@@ -202,6 +212,29 @@ int _readInt(dynamic v) {
   if (v is num) return v.toInt();
   if (v is String) return int.tryParse(v) ?? 0;
   return 0;
+}
+
+Widget _followListAvatar(BuildContext context, _FollowUser u, String name) {
+  final raw = u.avatarUrl?.trim();
+  if (raw != null && raw.isNotEmpty) {
+    return ProfileAvatar(
+      imageUrl: raw,
+      radius: 22,
+      placeholderBackgroundColor: const Color(0xFFDBDBDB),
+      placeholderIconColor: const Color(0xFF262626),
+    );
+  }
+  return CircleAvatar(
+    radius: 22,
+    backgroundColor: const Color(0xFFDBDBDB),
+    child: Text(
+      name.isNotEmpty ? name[0].toUpperCase() : '?',
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF262626),
+          ),
+    ),
+  );
 }
 
 class _FollowUserList extends StatelessWidget {
@@ -271,20 +304,13 @@ class _FollowUserList extends StatelessWidget {
                   pushUserProfile(profileContext, userId: u.id, username: name);
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: kScreenHorizontalPadding,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: const Color(0xFFDBDBDB),
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF262626),
-                              ),
-                        ),
-                      ),
+                      _followListAvatar(context, u, name),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(

@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
 
 class CommissionWorkViewScreen extends StatefulWidget {
   final Project commission;
@@ -24,6 +26,8 @@ class CommissionWorkViewScreen extends StatefulWidget {
 }
 
 class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
+  static const _acceptReleaseGreen = Color(0xFF2E7D32);
+
   final _apiClient = ApiClient();
   int _selectedImageIndex = 0;
   bool _busy = false;
@@ -208,15 +212,18 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const BackButton(color: Colors.black),
-        title: const Text(
+        leading: const BackButton(color: BcColors.ink),
+        title: Text(
           'View Commission Work',
-          style: TextStyle(color: Color(0xFFD32F2F)),
+          style: bcPushedScreenTitleStyle(context),
         ),
         backgroundColor: Colors.white,
-        elevation: 1,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
-      backgroundColor: const Color(0xFFF2F2F4),
+      backgroundColor: BcColors.pageBackground,
       body: Column(
         children: [
           Expanded(
@@ -225,7 +232,12 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(
+                      kScreenHorizontalPadding,
+                      16,
+                      kScreenHorizontalPadding,
+                      8,
+                    ),
                     child: Text(
                       'Artwork Submitted: ${_stageTitle()}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -236,7 +248,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                   ),
                   if (_imageGallery.isNotEmpty) ...[
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                       child: AspectRatio(
                         aspectRatio: 1,
                         child: ClipRRect(
@@ -253,7 +265,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                       SizedBox(
                         height: 80,
                         child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                           scrollDirection: Axis.horizontal,
                           itemCount: _imageGallery.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -267,7 +279,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: sel
-                                        ? const Color(0xFFD32F2F)
+                                        ? BcColors.brandRed
                                         : Colors.grey.shade300,
                                     width: sel ? 2 : 1,
                                   ),
@@ -284,7 +296,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                     ],
                   ] else ...[
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                       child: AspectRatio(
                         aspectRatio: 1.2,
                         child: DecoratedBox(
@@ -305,7 +317,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                   ],
                   const SizedBox(height: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                     child: _detailCard(
                       context,
                       children: [
@@ -330,7 +342,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                   ),
                   const SizedBox(height: 12),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                     child: _detailCard(
                       context,
                       children: [
@@ -353,7 +365,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                   if (_c.referenceImages.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                       child: Text(
                         'Reference Images',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -365,7 +377,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                     SizedBox(
                       height: 88,
                       child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                         scrollDirection: Axis.horizontal,
                         itemCount: _c.referenceImages.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -385,7 +397,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                   ],
                   const SizedBox(height: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: kScreenHorizontalPadding),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -393,7 +405,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: _c.isUrgent
-                              ? const Color(0xFFD32F2F)
+                              ? BcColors.brandRed
                               : Colors.grey.shade300,
                         ),
                       ),
@@ -406,7 +418,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                               child: Text(
                                 'This is an urgent commission',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: const Color(0xFFD32F2F),
+                                      color: BcColors.brandRed,
                                       fontWeight: FontWeight.w700,
                                     ),
                               ),
@@ -432,7 +444,12 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
           ),
           if (widget.patronReviewMode) ...[
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(
+              kScreenHorizontalPadding,
+              8,
+              kScreenHorizontalPadding,
+              16,
+            ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
@@ -461,52 +478,86 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                         ),
                       ),
                     Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _busy ? null : _reject,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          side: const BorderSide(color: Colors.black54),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text('Reject'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: (_busy || _imageGallery.isEmpty)
-                            ? null
-                            : _accept,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD32F2F),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: _busy
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Accept work & release payment',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _busy ? null : _reject,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF101010),
+                              side: const BorderSide(color: Color(0xFF424242)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
                               ),
-                      ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                            child: const Text(
+                              'Reject',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: (_busy || _imageGallery.isEmpty)
+                                ? null
+                                : _accept,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _acceptReleaseGreen,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              disabledForegroundColor: Colors.grey.shade600,
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              surfaceTintColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                            child: _busy
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Accept work & release payment',
+                                    textAlign: TextAlign.center,
+                                    maxLines: 3,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      height: 1.25,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
                   ],
                 ),
               ),
             ),
           ] else if (showDownload) ...[
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(
+              kScreenHorizontalPadding,
+              8,
+              kScreenHorizontalPadding,
+              16,
+            ),
               decoration: const BoxDecoration(color: Colors.white),
               child: SafeArea(
                 top: false,
@@ -564,7 +615,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: accent ? const Color(0xFFD32F2F) : const Color(0xFF111111),
+              color: accent ? BcColors.brandRed : const Color(0xFF111111),
             ),
           ),
         ],
@@ -588,7 +639,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
             '₱${amount.toStringAsFixed(2)}',
             style: TextStyle(
               fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-              color: accent ? const Color(0xFFD32F2F) : const Color(0xFF111111),
+              color: accent ? BcColors.brandRed : const Color(0xFF111111),
             ),
           ),
         ],

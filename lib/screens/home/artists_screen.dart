@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_models.dart';
 import '../../services/api_client.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 
 class ArtistsScreen extends StatefulWidget {
   const ArtistsScreen({super.key});
@@ -28,8 +30,15 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        title: const Text('Discover Artists'),
+        leading: const BackButton(color: BcColors.ink),
+        title: Text('Discover Artists', style: bcPushedScreenTitleStyle(context)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
       body: FutureBuilder<List<Artist>>(
         future: _artistsFuture,
@@ -40,6 +49,10 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
           if (snapshot.hasError) {
             return Center(
               child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: BcColors.brandRed,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: () {
                   setState(() {
                     _artistsFuture = _loadArtists();
@@ -52,7 +65,12 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
 
           final artists = snapshot.data ?? const <Artist>[];
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              kScreenHorizontalPadding,
+              16,
+              kScreenHorizontalPadding,
+              16,
+            ),
             itemCount: artists.length,
             itemBuilder: (context, index) {
               final artist = artists[index];

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
+
 import '../../services/api_client.dart';
 import '../../state/app_profile.dart';
 import '../../state/app_profile_scope.dart';
@@ -98,10 +101,13 @@ class _OnboardingRoleScreenState extends State<OnboardingRoleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: BcColors.pageBackground,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kScreenHorizontalPadding,
+            vertical: 16,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

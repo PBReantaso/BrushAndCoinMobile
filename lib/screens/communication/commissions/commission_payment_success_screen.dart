@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../navigation/user_profile_navigation.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
 
 class CommissionPaymentSuccessScreen extends StatelessWidget {
   final int artistUserId;
@@ -31,20 +33,26 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F4),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
         leading: BackButton(
-          color: Colors.black,
+          color: BcColors.ink,
           onPressed: () => _exitToArtistProfile(context),
         ),
-        title: const Text('Payment', style: TextStyle(color: Colors.black)),
+        title: Text('Payment', style: bcPushedScreenTitleStyle(context)),
         backgroundColor: Colors.white,
-        elevation: 1,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
       body: Center(
         child: Container(
           width: MediaQuery.of(context).size.width * 0.88,
-          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+          padding: const EdgeInsets.symmetric(
+            vertical: 32,
+            horizontal: kScreenHorizontalPadding,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -75,7 +83,7 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
               Text(
                 'Success!',
                 style: t.headlineMedium?.copyWith(
-                  color: const Color(0xFFD32F2F),
+                  color: BcColors.brandRed,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -95,7 +103,7 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD32F2F),
+                    backgroundColor: BcColors.brandRed,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),

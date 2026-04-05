@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/content_spacing.dart';
+
 /// Matches [CreatePostScreen] label + field styling.
 const Color _kLabelAccent = Color(0xFFFF4A4A);
 const Color _kFieldFill = Color(0xFFF6F6F6);
@@ -15,17 +17,13 @@ Future<({String title, String description})?> showEditPostBottomSheet(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (sheetContext) {
-      final height = MediaQuery.sizeOf(sheetContext).height * 0.88;
       return Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
         ),
-        child: SizedBox(
-          height: height,
-          child: _EditPostSheet(
-            initialTitle: initialTitle,
-            initialDescription: initialDescription,
-          ),
+        child: _EditPostSheet(
+          initialTitle: initialTitle,
+          initialDescription: initialDescription,
         ),
       );
     },
@@ -85,6 +83,7 @@ class _EditPostSheetState extends State<_EditPostSheet> {
 
     InputDecoration filledDecoration(String? hint) {
       return InputDecoration(
+        isDense: true,
         hintText: hint,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -92,6 +91,7 @@ class _EditPostSheetState extends State<_EditPostSheet> {
         ),
         filled: true,
         fillColor: _kFieldFill,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       );
     }
 
@@ -110,6 +110,7 @@ class _EditPostSheetState extends State<_EditPostSheet> {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
@@ -142,24 +143,33 @@ class _EditPostSheetState extends State<_EditPostSheet> {
               ],
             ),
           ),
-          Expanded(
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+            ),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              shrinkWrap: true,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(
+                kScreenHorizontalPadding,
+                0,
+                kScreenHorizontalPadding,
+                0,
+              ),
+              physics: const ClampingScrollPhysics(),
               children: [
                 label('Title'),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 TextField(
                   controller: _titleController,
                   decoration: filledDecoration('Title'),
                   textCapitalization: TextCapitalization.sentences,
                 ),
-                const SizedBox(height: 12),
                 label('Description'),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 TextField(
                   controller: _descriptionController,
-                  minLines: 5,
+                  minLines: 3,
                   maxLines: 8,
                   decoration: filledDecoration('Description'),
                   textCapitalization: TextCapitalization.sentences,
@@ -170,7 +180,12 @@ class _EditPostSheetState extends State<_EditPostSheet> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              padding: const EdgeInsets.fromLTRB(
+                kScreenHorizontalPadding,
+                0,
+                kScreenHorizontalPadding,
+                12,
+              ),
               child: SizedBox(
                 width: double.infinity,
                 height: 48,

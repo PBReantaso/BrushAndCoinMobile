@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
 
 class CommissionRequestScreen extends StatefulWidget {
   final int artistId;
@@ -158,39 +160,72 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(color: Colors.black),
-        title: const Text('Request Commission',
-            style: TextStyle(color: Colors.black)),
+        leading: const BackButton(color: BcColors.ink),
+        title: Text(
+          'Request Commission',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: BcColors.brandRed,
+              ),
+        ),
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
-      backgroundColor: const Color(0xFFF2F2F4),
+      backgroundColor: BcColors.pageBackground,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          kScreenHorizontalPadding,
+          12,
+          kScreenHorizontalPadding,
+          24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFFFFE6E6),
+                border: Border.all(color: BcColors.cardBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Provided by Artist',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
                   Text(
-                    'Description from ${widget.artistName}',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    'Provided by artist',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF8C8C90),
+                        ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text('Starting Price: ₱300.00',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFB00020))),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.artistName,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1A1A1E),
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'You\'re requesting a commission from this artist.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF6C6C74),
+                          height: 1.35,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Starting price: ₱300.00',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: BcColors.brandRed,
+                        ),
+                  ),
                 ],
               ),
             ),
@@ -229,14 +264,22 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                     'Any specific details, style preference, dimensions, etc.',
                 maxLines: 3),
             const SizedBox(height: 12),
-            Text('Reference Images (Optional, max 5)',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              'Reference Images (Optional, max 5)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF8C8C90),
+                  ),
+            ),
             const SizedBox(height: 8),
             _buildReferenceImagePicker(),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Preferred payment method',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1A1A1E),
+                  ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -269,18 +312,26 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.all(12),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: BcColors.cardBorder),
+              ),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Pricing Summary',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  Text(
+                    'Pricing Summary',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1A1A1E),
+                        ),
+                  ),
+                  const SizedBox(height: 10),
                   _buildPricingRow('Base budget', _budgetValue),
                   _buildPricingRow('Urgency Fee (20%)', _urgencyFee),
                   _buildPricingRow('Platform Fee (5%)', _platformFee),
-                  const Divider(),
+                  const Divider(height: 20, color: Color(0xFFE6E6EA)),
                   _buildPricingRow('Total Amount', _totalAmount,
                       bold: true, colored: true),
                 ],
@@ -292,21 +343,34 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
+                      foregroundColor: const Color(0xFF1A1A1E),
+                      side: const BorderSide(color: Color(0xFF424242)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                     onPressed: _isSubmitting
                         ? null
                         : () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD32F2F),
+                      backgroundColor: BcColors.brandRed,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      surfaceTintColor: Colors.transparent,
                       padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                     onPressed: _isSubmitting ? null : _submit,
                     child: _isSubmitting
@@ -315,8 +379,13 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                             height: 18,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
-                        : const Text('Send Request',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        : const Text(
+                            'Send Request',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -342,7 +411,22 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF8C8C90),
+            ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: BcColors.cardBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: BcColors.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: BcColors.brandRed, width: 1.5),
+        ),
         filled: true,
         fillColor: Colors.white,
       ),
@@ -422,13 +506,13 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         decoration: BoxDecoration(
           color: _selectedPaymentMethod == type
-              ? const Color(0xFFFFE6E6)
+              ? const Color(0xFFFFF0F0)
               : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: _selectedPaymentMethod == type
-                ? const Color(0xFFD32F2F)
-                : const Color(0xFFC7C7CC),
+                ? BcColors.brandRed
+                : BcColors.cardBorder,
           ),
         ),
         child: Row(
@@ -438,8 +522,8 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                   ? Icons.radio_button_checked
                   : Icons.radio_button_off,
               color: _selectedPaymentMethod == type
-                  ? const Color(0xFFD32F2F)
-                  : Colors.grey,
+                  ? BcColors.brandRed
+                  : const Color(0xFF8C8C90),
             ),
             const SizedBox(width: 10),
             Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -456,14 +540,18 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+              color: const Color(0xFF1A1A1E),
+            ),
+          ),
           Text(
             '₱${amount.toStringAsFixed(2)}',
             style: TextStyle(
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-              color: colored ? const Color(0xFFD32F2F) : Colors.black87,
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+              color: colored ? BcColors.brandRed : const Color(0xFF1A1A1E),
             ),
           ),
         ],

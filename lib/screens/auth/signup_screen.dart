@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
+import '../../theme/content_spacing.dart';
 import '../../widgets/auth/auth_styles.dart';
 import '../../widgets/auth/google_button.dart';
 import '../../widgets/auth/or_divider.dart';
@@ -91,7 +92,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kScreenHorizontalPadding,
+            vertical: 18,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -326,7 +330,10 @@ class _LegalSheetContainerState extends State<_LegalSheetContainer> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: kScreenHorizontalPadding,
+              vertical: 10,
+            ),
             child: Row(
               children: [
                 IconButton(
@@ -344,7 +351,10 @@ class _LegalSheetContainerState extends State<_LegalSheetContainer> {
           const Divider(height: 1),
           Padding(
             padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                const EdgeInsets.symmetric(
+                  horizontal: kScreenHorizontalPadding,
+                  vertical: 8.0,
+                ),
             child: Row(
               children: [
                 Expanded(
@@ -368,7 +378,10 @@ class _LegalSheetContainerState extends State<_LegalSheetContainer> {
           Expanded(
             child: Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  const EdgeInsets.symmetric(
+                  horizontal: kScreenHorizontalPadding,
+                  vertical: 8.0,
+                ),
               child: SingleChildScrollView(
                 child: _tab == LegalTab.terms
                     ? const _SignUpTermsContent()

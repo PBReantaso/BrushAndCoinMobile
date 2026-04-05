@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
+import '../../theme/content_spacing.dart';
 import '../../widgets/auth/auth_styles.dart';
 import '../../widgets/auth/google_button.dart';
 import '../../widgets/auth/or_divider.dart';
@@ -103,7 +104,10 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kScreenHorizontalPadding,
+            vertical: 18,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -12,6 +12,9 @@ import '../../widgets/profile/follow_connections_sheet.dart';
 import '../../widgets/profile/profile_avatar.dart';
 import '../../widgets/profile/profile_social_links_row.dart';
 import '../../widgets/profile/username_with_private_lock.dart';
+import 'profile_merch_viewer_screen.dart';
+import 'profile_post_viewer_screen.dart';
+import '../../widgets/profile/profile_merch_tile.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -106,8 +109,16 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
       final tu = user['tipsUrl'];
       if (tu is String && tu.trim().isNotEmpty) tipsUrl = tu.trim();
     }
+    var merchandise = <_ProfileMerch>[];
+    if (myUserId > 0) {
+      try {
+        final merchRaw = await _apiClient.fetchUserMerchandise(myUserId);
+        merchandise = merchRaw.map(_ProfileMerch.fromJson).toList();
+      } catch (_) {}
+    }
     return _ProfileLoadResult(
       posts: postsRaw.map(_ProfilePost.fromJson).toList(),
+      merchandise: merchandise,
       apiUsername: apiUsername,
       followerCount: followerCount,
       followingCount: followingCount,
@@ -172,6 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
         builder: (context, snapshot) {
           final data = snapshot.data;
           final posts = data?.posts ?? const <_ProfilePost>[];
+          final merchandise = data?.merchandise ?? const <_ProfileMerch>[];
           final apiUsername = data?.apiUsername ?? '';
           final followerCount = data?.followerCount ?? 0;
           final followingCount = data?.followingCount ?? 0;
@@ -199,9 +211,9 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    16,
+                    kScreenHorizontalPadding,
                     12 + kContentBelowAppBarPadding,
-                    16,
+                    kScreenHorizontalPadding,
                     10,
                   ),
                   child: Column(
@@ -334,23 +346,6 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          SizedBox(
-                            height: 38,
-                            width: 42,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFFD7D7DE)),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                backgroundColor: Colors.white,
-                                padding: EdgeInsets.zero,
-                              ),
-                              onPressed: () {},
-                              child: const Icon(Icons.person_add_alt_1, size: 18),
-                            ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -413,41 +408,51 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                   ),
                 )
               else if (_activeTab == 1)
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 2),
-                  sliver: SliverGrid(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        const colors = [
-                          [Color(0xFF6F4E37), Color(0xFFD4A373)],
-                          [Color(0xFF2F3E46), Color(0xFF84A98C)],
-                          [Color(0xFF4A4E69), Color(0xFF9A8C98)],
-                          [Color(0xFF5F0F40), Color(0xFF9A031E)],
-                        ];
-                        final palette = colors[index % colors.length];
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: palette,
-                            ),
+                merchandise.isEmpty
+                    ? const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(28),
+                          child: Center(
+                            child: Text('No merchandise yet.'),
                           ),
-                          child: const Center(
-                            child: Icon(Icons.inventory_2_outlined, color: Colors.white70, size: 32),
+                        ),
+                      )
+                    : SliverPadding(
+                        padding: const EdgeInsets.only(top: 2),
+                        sliver: SliverGrid(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final m = merchandise[index];
+                              return ProfileMerchTile(
+                                imageUrl: m.imageUrl,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => ProfileMerchViewerScreen(
+                                        items: merchandise
+                                            .map((e) => e.json)
+                                            .toList(),
+                                        initialIndex: index,
+                                        authorName: displayName,
+                                        authorAvatarUrl: avatarUrl,
+                                        authorUserId: myUserId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                            childCount: merchandise.length,
                           ),
-                        );
-                      },
-                      childCount: 4,
-                    ),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 2,
-                      crossAxisSpacing: 2,
-                      childAspectRatio: 1,
-                    ),
-                  ),
-                )
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 2,
+                            crossAxisSpacing: 2,
+                            childAspectRatio: 1,
+                          ),
+                        ),
+                      )
               else if (posts.isEmpty)
                 const SliverToBoxAdapter(
                   child: Padding(
@@ -460,7 +465,21 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                   padding: const EdgeInsets.only(top: 2),
                   sliver: SliverGrid(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) => _GalleryTile(post: posts[index]),
+                      (context, index) => _GalleryTile(
+                        post: posts[index],
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ProfilePostViewerScreen(
+                                posts: posts.map((p) => p.json).toList(),
+                                initialIndex: index,
+                                currentUserId:
+                                    myUserId > 0 ? myUserId : null,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       childCount: posts.length,
                     ),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -483,6 +502,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
 
 class _ProfileLoadResult {
   final List<_ProfilePost> posts;
+  final List<_ProfileMerch> merchandise;
   final String apiUsername;
   final int followerCount;
   final int followingCount;
@@ -497,6 +517,7 @@ class _ProfileLoadResult {
 
   const _ProfileLoadResult({
     required this.posts,
+    required this.merchandise,
     required this.apiUsername,
     required this.followerCount,
     required this.followingCount,
@@ -589,37 +610,63 @@ class _ProfileTextTab extends StatelessWidget {
 }
 
 class _ProfilePost {
-  final String? imageUrl;
+  final Map<String, dynamic> json;
 
-  const _ProfilePost({required this.imageUrl});
+  const _ProfilePost({required this.json});
 
-  factory _ProfilePost.fromJson(Map<String, dynamic> json) {
-    return _ProfilePost(imageUrl: json['imageUrl'] as String?);
+  factory _ProfilePost.fromJson(Map<String, dynamic> j) {
+    return _ProfilePost(json: Map<String, dynamic>.from(j));
   }
+
+  String? get imageUrl => json['imageUrl'] as String?;
+}
+
+class _ProfileMerch {
+  final Map<String, dynamic> json;
+
+  const _ProfileMerch({required this.json});
+
+  factory _ProfileMerch.fromJson(Map<String, dynamic> j) {
+    return _ProfileMerch(json: Map<String, dynamic>.from(j));
+  }
+
+  String? get imageUrl => json['imageUrl'] as String?;
 }
 
 class _GalleryTile extends StatelessWidget {
   final _ProfilePost post;
+  final VoidCallback onTap;
 
-  const _GalleryTile({required this.post});
+  const _GalleryTile({required this.post, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final path = post.imageUrl?.trim() ?? '';
+    Widget inner;
     if (path.isNotEmpty) {
       final imageProvider = path.startsWith('http://') || path.startsWith('https://')
           ? NetworkImage(path) as ImageProvider
           : FileImage(File(path));
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: Image(
-          image: imageProvider,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallback(),
-        ),
+      inner = Image(
+        image: imageProvider,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _fallback(),
       );
+    } else {
+      inner = _fallback();
     }
-    return _fallback();
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: inner,
+        ),
+      ),
+    );
   }
 
   Widget _fallback() {

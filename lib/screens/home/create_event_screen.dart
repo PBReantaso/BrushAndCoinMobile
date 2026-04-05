@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../services/api_client.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 
 /// Opens add-event as a modal [showModalBottomSheet] (~full height).
 Future<bool?> showCreateEventBottomSheet(BuildContext context) {
@@ -81,7 +83,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
     final listView = ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+      padding: const EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        12,
+        kScreenHorizontalPadding,
+        90,
+      ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
         _ImageUploadBox(
@@ -161,7 +168,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     final bottomInset =
         widget.asBottomSheet ? MediaQuery.paddingOf(context).bottom : 0.0;
     final bottomButton = Padding(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 18 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        8,
+        kScreenHorizontalPadding,
+        18 + bottomInset,
+      ),
       child: SizedBox(
         width: double.infinity,
         height: 48,
@@ -300,20 +312,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        title: Text(
-          'Add Event',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        title: Text('Add Event', style: bcPushedScreenTitleStyle(context)),
+        leading: const BackButton(color: BcColors.ink),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: formBody,
     );
@@ -341,7 +348,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                padding: const EdgeInsets.fromLTRB(
+                  kScreenHorizontalPadding,
+                  14,
+                  kScreenHorizontalPadding,
+                  16,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1272,12 +1284,15 @@ class _ExpandedMapPickerScreenState extends State<_ExpandedMapPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        title: const Text('Pick Location'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(_pickedPoint),
-        ),
+        title: Text('Pick Location', style: bcPushedScreenTitleStyle(context)),
+        leading: const BackButton(color: BcColors.ink),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
       body: FlutterMap(
         mapController: _controller,
@@ -1309,7 +1324,12 @@ class _ExpandedMapPickerScreenState extends State<_ExpandedMapPickerScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(
+            kScreenHorizontalPadding,
+            8,
+            kScreenHorizontalPadding,
+            16,
+          ),
           child: SizedBox(
             height: 46,
             child: FilledButton(

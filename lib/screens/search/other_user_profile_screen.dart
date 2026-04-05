@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_models.dart';
 import '../../services/api_client.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 import '../../widgets/profile/follow_connections_sheet.dart';
 import '../../widgets/profile/profile_avatar.dart';
 import '../../widgets/profile/profile_social_links_row.dart';
 import '../../widgets/profile/username_with_private_lock.dart';
 import '../communication/commissions/commission_request_screen.dart';
 import '../communication/messages/chat_screen.dart';
+import '../profile/profile_merch_viewer_screen.dart';
+import '../profile/profile_post_viewer_screen.dart';
+import '../../widgets/profile/profile_merch_tile.dart';
 
 class OtherUserProfileScreen extends StatefulWidget {
   final int userId;
@@ -90,12 +95,18 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
       }
       final postsRaw = await _api.fetchUserPosts(widget.userId);
       final posts = postsRaw.map(_OtherPost.fromJson).toList();
+      List<_OtherMerch> merchandise = [];
+      try {
+        final merchRaw = await _api.fetchUserMerchandise(widget.userId);
+        merchandise = merchRaw.map(_OtherMerch.fromJson).toList();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _myUserId = myId;
         _data = _OtherProfileData(
           username: username,
           posts: posts,
+          merchandise: merchandise,
           followerCount: followerCount,
           followingCount: followingCount,
           isFollowing: isFollowing,
@@ -155,6 +166,70 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
     }
   }
 
+  /// App red/black theme (same as primary buttons and accents elsewhere).
+  static const Color _kBrandRed = Color(0xFFFF4A4A);
+
+  Future<void> _confirmUnfollow() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shadowColor: Colors.black26,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+        contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(
+          kScreenHorizontalPadding,
+          0,
+          kScreenHorizontalPadding,
+          16,
+        ),
+        actionsAlignment: MainAxisAlignment.end,
+        title: const Text(
+          'Unfollow',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1E),
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to unfollow?',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF5C5C66),
+            height: 1.35,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1A1A1E),
+            ),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: _kBrandRed,
+            ),
+            child: const Text('Unfollow'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _toggleFollow();
+    }
+  }
+
   void _onMessage() async {
     try {
       final conversationJson = await _api.startConversation(widget.userId);
@@ -205,41 +280,22 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
     if (data.isFollowing) {
       return _wrapFollowWidth(
         fullWidth: fullWidth,
-        child: PopupMenuButton<String>(
-          offset: const Offset(0, 38),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          onSelected: (value) {
-            if (value == 'unfollow') _toggleFollow();
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'unfollow',
-              child: Text('Unfollow'),
-            ),
-          ],
-          child: Container(
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFD7D7DE)),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
+        child: OutlinedButton(
+          style: _outlinedActionStyle,
+          onPressed: _followActionBusy ? null : _confirmUnfollow,
+          child: _followActionBusy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text(
                   'Following',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
                     color: Color(0xFF1A1A1E),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(width: 2),
-                Icon(Icons.expand_more, size: 18, color: Color(0xFF1A1A1E)),
-              ],
-            ),
-          ),
         ),
       );
     }
@@ -346,25 +402,25 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F4),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEDEDF1),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const BackButton(color: BcColors.ink),
         title: _data != null
             ? UsernameWithPrivateLock(
                 username: _data!.username.isNotEmpty ? _data!.username : widget.usernameHint,
                 isPrivate: _data!.isPrivate,
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                textStyle: bcPushedScreenTitleStyle(context),
                 lockSize: 17,
               )
             : Text(
                 widget.usernameHint,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: bcPushedScreenTitleStyle(context),
               ),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: _buildBody(),
     );
@@ -400,12 +456,18 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
       return const Center(child: Text('Unable to load profile.'));
     }
     final posts = data.posts;
+    final merchandise = data.merchandise;
 
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+            padding: const EdgeInsets.fromLTRB(
+              kScreenHorizontalPadding,
+              12,
+              kScreenHorizontalPadding,
+              10,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -520,41 +582,56 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
           ),
         ),
         if (_activeTab == 1)
-          SliverPadding(
-            padding: const EdgeInsets.only(top: 2),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  const colors = [
-                    [Color(0xFF6F4E37), Color(0xFFD4A373)],
-                    [Color(0xFF2F3E46), Color(0xFF84A98C)],
-                    [Color(0xFF4A4E69), Color(0xFF9A8C98)],
-                    [Color(0xFF5F0F40), Color(0xFF9A031E)],
-                  ];
-                  final palette = colors[index % colors.length];
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: palette,
+          merchandise.isEmpty
+              ? SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Center(
+                      child: Text(
+                        data.isLocked
+                            ? 'Merchandise is hidden for private accounts until you follow.'
+                            : 'No merchandise yet.',
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.inventory_2_outlined, color: Colors.white70, size: 32),
+                  ),
+                )
+              : SliverPadding(
+                  padding: const EdgeInsets.only(top: 2),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final m = merchandise[index];
+                        return ProfileMerchTile(
+                          imageUrl: m.imageUrl,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ProfileMerchViewerScreen(
+                                  items: merchandise
+                                      .map((e) => e.json)
+                                      .toList(),
+                                  initialIndex: index,
+                                  authorName: data.username,
+                                  authorAvatarUrl: data.avatarUrl,
+                                  authorUserId: widget.userId,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      childCount: merchandise.length,
                     ),
-                  );
-                },
-                childCount: 4,
-              ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 2,
-                childAspectRatio: 1,
-              ),
-            ),
-          )
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 2,
+                      crossAxisSpacing: 2,
+                      childAspectRatio: 1,
+                    ),
+                  ),
+                )
         else if (posts.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
@@ -574,7 +651,20 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
             padding: const EdgeInsets.only(top: 2),
             sliver: SliverGrid(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _GalleryTile(post: posts[index]),
+                (context, index) => _GalleryTile(
+                  post: posts[index],
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ProfilePostViewerScreen(
+                          posts: posts.map((p) => p.json).toList(),
+                          initialIndex: index,
+                          currentUserId: _myUserId,
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 childCount: posts.length,
               ),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -594,6 +684,7 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
 class _OtherProfileData {
   final String username;
   final List<_OtherPost> posts;
+  final List<_OtherMerch> merchandise;
   final int followerCount;
   final int followingCount;
   final bool isFollowing;
@@ -607,6 +698,7 @@ class _OtherProfileData {
   _OtherProfileData({
     required this.username,
     required this.posts,
+    required this.merchandise,
     required this.followerCount,
     required this.followingCount,
     required this.isFollowing,
@@ -621,6 +713,7 @@ class _OtherProfileData {
   _OtherProfileData copyWith({
     String? username,
     List<_OtherPost>? posts,
+    List<_OtherMerch>? merchandise,
     int? followerCount,
     int? followingCount,
     bool? isFollowing,
@@ -634,6 +727,7 @@ class _OtherProfileData {
     return _OtherProfileData(
       username: username ?? this.username,
       posts: posts ?? this.posts,
+      merchandise: merchandise ?? this.merchandise,
       followerCount: followerCount ?? this.followerCount,
       followingCount: followingCount ?? this.followingCount,
       isFollowing: isFollowing ?? this.isFollowing,
@@ -648,37 +742,63 @@ class _OtherProfileData {
 }
 
 class _OtherPost {
-  final String? imageUrl;
+  final Map<String, dynamic> json;
 
-  _OtherPost({required this.imageUrl});
+  _OtherPost({required this.json});
 
-  factory _OtherPost.fromJson(Map<String, dynamic> json) {
-    return _OtherPost(imageUrl: json['imageUrl'] as String?);
+  factory _OtherPost.fromJson(Map<String, dynamic> j) {
+    return _OtherPost(json: Map<String, dynamic>.from(j));
   }
+
+  String? get imageUrl => json['imageUrl'] as String?;
+}
+
+class _OtherMerch {
+  final Map<String, dynamic> json;
+
+  _OtherMerch({required this.json});
+
+  factory _OtherMerch.fromJson(Map<String, dynamic> j) {
+    return _OtherMerch(json: Map<String, dynamic>.from(j));
+  }
+
+  String? get imageUrl => json['imageUrl'] as String?;
 }
 
 class _GalleryTile extends StatelessWidget {
   final _OtherPost post;
+  final VoidCallback onTap;
 
-  const _GalleryTile({required this.post});
+  const _GalleryTile({required this.post, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final path = post.imageUrl?.trim() ?? '';
+    Widget inner;
     if (path.isNotEmpty) {
       final imageProvider = path.startsWith('http://') || path.startsWith('https://')
           ? NetworkImage(path) as ImageProvider
           : FileImage(File(path));
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: Image(
-          image: imageProvider,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallback(),
-        ),
+      inner = Image(
+        image: imageProvider,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _fallback(),
       );
+    } else {
+      inner = _fallback();
     }
-    return _fallback();
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: inner,
+        ),
+      ),
+    );
   }
 
   Widget _fallback() {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/app_models.dart';
 import '../../services/api_client.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -28,8 +30,18 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        title: const Text('Projects & Contracts'),
+        leading: const BackButton(color: BcColors.ink),
+        title: Text(
+          'Projects & Contracts',
+          style: bcPushedScreenTitleStyle(context),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
       body: FutureBuilder<List<Project>>(
         future: _projectsFuture,
@@ -40,6 +52,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           if (snapshot.hasError) {
             return Center(
               child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: BcColors.brandRed,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: () {
                   setState(() {
                     _projectsFuture = _loadProjects();
@@ -52,7 +68,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
           final projects = snapshot.data ?? const <Project>[];
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              kScreenHorizontalPadding,
+              16,
+              kScreenHorizontalPadding,
+              16,
+            ),
             itemCount: projects.length,
             itemBuilder: (context, index) {
               final p = projects[index];

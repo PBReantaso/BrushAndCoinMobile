@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../navigation/main_shell_scope.dart';
 import '../../screens/notifications/notifications_screen.dart';
 import '../../screens/search/search_screen.dart';
 import '../../state/inbox_badge_scope.dart';
@@ -28,17 +29,29 @@ class BcAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 16,
       title: Row(
         children: [
-          RichText(
-            text: TextSpan(
-              style: logoBase,
-              children: [
-                const TextSpan(text: 'B', style: TextStyle(color: Colors.black)),
-                const TextSpan(text: '&', style: TextStyle(color: Colors.black)),
-                TextSpan(
-                  text: 'C',
-                  style: logoBase.copyWith(color: const Color(0xFFFF4A4A)),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                MainShellScope.maybeOf(context)?.selectTab(0);
+              },
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                child: RichText(
+                  text: TextSpan(
+                    style: logoBase,
+                    children: [
+                      const TextSpan(text: 'B', style: TextStyle(color: Colors.black)),
+                      const TextSpan(text: '&', style: TextStyle(color: Colors.black)),
+                      TextSpan(
+                        text: 'C',
+                        style: logoBase.copyWith(color: const Color(0xFFFF4A4A)),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
           const SizedBox(width: 12),

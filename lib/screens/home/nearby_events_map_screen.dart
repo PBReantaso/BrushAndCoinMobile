@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../models/calendar_event.dart';
+import '../../theme/content_spacing.dart';
 
 /// Full-screen map: user location, search radius (1–100 km, default 10 km), and nearby pinned events.
 class NearbyEventsMapScreen extends StatefulWidget {
@@ -147,7 +148,12 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
       builder: (sheetContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(
+              kScreenHorizontalPadding,
+              0,
+              kScreenHorizontalPadding,
+              20,
+            ),
             child: StatefulBuilder(
               builder: (context, setModalState) {
                 return Column(
@@ -389,7 +395,12 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                          padding: const EdgeInsets.fromLTRB(
+                            kScreenHorizontalPadding,
+                            14,
+                            kScreenHorizontalPadding,
+                            4,
+                          ),
                           child: Text(
                             nearby.isEmpty
                                 ? 'Events in radius'
@@ -402,7 +413,12 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
                         ),
                       if (nearby.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                          padding: const EdgeInsets.fromLTRB(
+                            kScreenHorizontalPadding,
+                            4,
+                            kScreenHorizontalPadding,
+                            16,
+                          ),
                           child: Text(
                             'No events with a map location inside your search radius. '
                             'Widen the radius, or add an event with a pinned location on the map.',
@@ -416,7 +432,12 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxHeight: 220),
                           child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                            padding: const EdgeInsets.fromLTRB(
+                              kScreenHorizontalPadding,
+                              4,
+                              kScreenHorizontalPadding,
+                              12,
+                            ),
                             itemCount: nearby.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 8),
                             itemBuilder: (context, i) {

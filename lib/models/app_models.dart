@@ -84,6 +84,8 @@ class Project {
   final int? artistId;
   /// Artist handle for patron "Sent" list and chat labels (from API).
   final String? artistUsername;
+  final String? artistAvatarUrl;
+  final String? patronAvatarUrl;
   final String title;
   final String clientName;
   final ProjectStatus status;
@@ -117,6 +119,8 @@ class Project {
     this.patronId,
     this.artistId,
     this.artistUsername,
+    this.artistAvatarUrl,
+    this.patronAvatarUrl,
     required this.title,
     required this.clientName,
     required this.status,
@@ -150,6 +154,8 @@ class Project {
       patronId: (json['patronId'] as num?)?.toInt(),
       artistId: (json['artistId'] as num?)?.toInt(),
       artistUsername: _optionalTrimmedString(json['artistUsername']),
+      artistAvatarUrl: _optionalTrimmedString(json['artistAvatarUrl']),
+      patronAvatarUrl: _optionalTrimmedString(json['patronAvatarUrl']),
       title: (json['title'] as String?) ?? '',
       clientName: (json['clientName'] as String?) ?? '',
       status: _projectStatusFromString((json['status'] as String?) ?? ''),
@@ -259,6 +265,8 @@ bool _conversationHasUnread(Map<String, dynamic> json) {
 class Conversation {
   final int? id;
   final String name;
+  /// Profile photo URL for the other participant (HTTPS, data URL, or API-relative path).
+  final String? otherUserAvatarUrl;
   final String? lastMessage;
   final tz.TZDateTime? lastMessageDate;
   final bool hasUnreadMessages;
@@ -268,6 +276,7 @@ class Conversation {
   Conversation(
       {this.id,
       required this.name,
+      this.otherUserAvatarUrl,
       this.lastMessage,
       this.lastMessageDate,
       this.hasUnreadMessages = false,
@@ -284,6 +293,7 @@ class Conversation {
     return Conversation(
       id: json['id'] as int?,
       name: (json['name'] as String?) ?? '',
+      otherUserAvatarUrl: _optionalTrimmedString(json['otherUserAvatarUrl']),
       lastMessage: json['lastMessage'] as String?,
       lastMessageDate: json['lastMessageDate'] != null
           ? tz.TZDateTime.from(

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/api_client.dart';
+import '../../theme/content_spacing.dart';
 import '../../state/app_profile_scope.dart';
 import 'profile_avatar.dart';
 
@@ -310,7 +311,12 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     final listView = ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        12,
+        kScreenHorizontalPadding,
+        16,
+      ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
         Column(
@@ -504,7 +510,12 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     );
 
     final bottomButton = Padding(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 18 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        8,
+        kScreenHorizontalPadding,
+        18 + bottomInset,
+      ),
       child: SizedBox(
         width: double.infinity,
         height: 48,

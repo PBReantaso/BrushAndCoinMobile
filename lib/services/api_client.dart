@@ -169,6 +169,15 @@ class ApiClient {
     throw ApiException('Commission not found.');
   }
 
+  /// Marks the commission as read for the current user (clears list unread styling).
+  Future<void> markCommissionViewed(int commissionId) async {
+    final response = await _authorizedPost(
+      '/commissions/$commissionId/viewed',
+      body: const {},
+    );
+    _throwIfError(response);
+  }
+
   Future<Map<String, dynamic>> createCommission({
     required int artistId,
     required String title,
@@ -282,6 +291,11 @@ class ApiClient {
     _throwIfError(response);
   }
 
+  Future<void> markAllNotificationsRead() async {
+    final response = await _authorizedPatch('/notifications/read-all', body: const {});
+    _throwIfError(response);
+  }
+
   /// Register FCM (or other) token when push is configured. Safe to call with no token (no-op).
   Future<void> registerPushDevice({required String token, required String platform}) async {
     final response = await _authorizedPost(
@@ -379,6 +393,27 @@ class ApiClient {
     throw ApiException('Unexpected response format.');
   }
 
+  Future<Map<String, dynamic>> createMerchandise({
+    required String title,
+    String description = '',
+    String? imageUrl,
+  }) async {
+    final response = await _authorizedPost(
+      '/merchandise',
+      body: {
+        'title': title,
+        'description': description,
+        'imageUrl': imageUrl,
+      },
+    );
+    final json = _throwIfErrorAndReadJson(response);
+    final m = json['merchandise'];
+    if (m is Map) {
+      return m.map((k, v) => MapEntry('$k', v));
+    }
+    throw ApiException('Unexpected response format.');
+  }
+
   Future<Map<String, dynamic>> updatePost({
     required int postId,
     required String title,
@@ -448,6 +483,11 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> fetchUserPosts(int userId) async {
     final json = await _getJsonProtected('/users/$userId/posts');
     return _readList(json['posts']);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUserMerchandise(int userId) async {
+    final json = await _getJsonProtected('/users/$userId/merchandise');
+    return _readList(json['merchandise']);
   }
 
   Future<List<Map<String, dynamic>>> fetchFollowers(int userId) async {

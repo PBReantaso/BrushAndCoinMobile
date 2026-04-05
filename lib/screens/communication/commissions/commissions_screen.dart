@@ -3,11 +3,13 @@ import 'package:intl/intl.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
+import '../../../widgets/profile/profile_avatar.dart';
 import '../../home/create_post_screen.dart';
 import 'commission_detail_screen.dart';
 
-enum _CommissionDirection { received, sent }
-enum _CommissionStatus { all, pending, accepted, inProgress, completed, rejected }
+enum _CommissionScope { all, received, sent }
 
 class CommissionsScreen extends StatefulWidget {
   const CommissionsScreen({super.key});
@@ -18,9 +20,7 @@ class CommissionsScreen extends StatefulWidget {
 
 class _CommissionsScreenState extends State<CommissionsScreen> {
   final _apiClient = ApiClient();
-  /// Default to outgoing requests so patrons see what they sent without switching tabs.
-  _CommissionDirection _direction = _CommissionDirection.sent;
-  _CommissionStatus _status = _CommissionStatus.all;
+  _CommissionScope _scope = _CommissionScope.all;
   String? _currentUsername;
   late Future<List<Project>> _commissionsFuture;
 
@@ -60,29 +60,10 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
 
     final me = _currentUsername!.trim().toLowerCase();
     return items.where((project) {
-      // Direction filter (case-insensitive; matches API client_name vs session username)
       final client = (project.clientName).trim().toLowerCase();
       final isReceived = client != me;
-      if (_direction == _CommissionDirection.received && !isReceived) return false;
-      if (_direction == _CommissionDirection.sent && isReceived) return false;
-
-      // Status filter
-      if (_status != _CommissionStatus.all) {
-        final status = project.status;
-        switch (_status) {
-          case _CommissionStatus.pending:
-            if (status != ProjectStatus.pending) return false;
-            break;
-          case _CommissionStatus.accepted:
-              if (status != ProjectStatus.accepted || project.milestones.isNotEmpty) return false;
-              break;
-            case _CommissionStatus.inProgress:
-              if (!_isProjectInProgress(project)) return false;
-          default:
-            break;
-        }
-      }
-
+      if (_scope == _CommissionScope.received && !isReceived) return false;
+      if (_scope == _CommissionScope.sent && isReceived) return false;
       return true;
     }).toList();
   }
@@ -116,7 +97,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
                       child: const Text(
                         'Start sharing your art',
                         style: TextStyle(
-                          color: Color(0xFFD32F2F),
+                          color: BcColors.brandRed,
                           fontWeight: FontWeight.w700,
                           decoration: TextDecoration.underline,
                         ),
@@ -165,7 +146,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
 
   Color _displayStatusColor(Project project) {
     if (_isProjectInProgress(project)) {
-      return const Color(0xFFD32F2F);
+      return BcColors.brandRed;
     }
 
     switch (project.status) {
@@ -178,7 +159,7 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
       case ProjectStatus.rejected:
         return const Color(0xFF444444);
       case ProjectStatus.inProgress:
-        return const Color(0xFFD32F2F);
+        return BcColors.brandRed;
     }
   }
 
@@ -218,29 +199,89 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        8,
+        kScreenHorizontalPadding,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: _CommissionActionDropdown(
-                  active: _direction,
-                  onChanged: (v) => setState(() => _direction = v),
+              Text(
+                'Commissions',
+                style: t.titleMedium?.copyWith(
+                  color: BcColors.brandRed,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _CommissionStatusDropdown(
-                  active: _status,
-                  onChanged: (v) => setState(() => _status = v),
+              const Spacer(),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  highlightColor: const Color(0xFFFFE4E4),
+                  splashColor: const Color(0x26FF4A4A),
+                ),
+                child: PopupMenuButton<_CommissionScope>(
+                  tooltip: 'Filter commissions',
+                  initialValue: _scope,
+                  onSelected: (mode) => setState(() => _scope = mode),
+                  position: PopupMenuPosition.under,
+                  offset: const Offset(0, 6),
+                  elevation: 10,
+                  shadowColor: Colors.black.withValues(alpha: 0.14),
+                  surfaceTintColor: Colors.transparent,
+                  color: Colors.white,
+                  menuPadding: const EdgeInsets.symmetric(vertical: 4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 188),
+                  popUpAnimationStyle: AnimationStyle.noAnimation,
+                  itemBuilder: (menuContext) {
+                    final m = Theme.of(menuContext).textTheme;
+                    final itemStyle = m.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF222222),
+                    );
+                    return [
+                      PopupMenuItem(
+                        value: _CommissionScope.all,
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('All', style: itemStyle),
+                      ),
+                      PopupMenuItem(
+                        value: _CommissionScope.received,
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('Received', style: itemStyle),
+                      ),
+                      PopupMenuItem(
+                        value: _CommissionScope.sent,
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('Sent', style: itemStyle),
+                      ),
+                    ];
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Icon(
+                      Icons.filter_list,
+                      color: Colors.black.withValues(alpha: 0.75),
+                      size: 26,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Expanded(
             child: FutureBuilder<List<Project>>(
               future: _commissionsFuture,
@@ -270,39 +311,42 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
                     itemCount: visibleCommissions.length,
                     itemBuilder: (context, index) {
                       final commission = visibleCommissions[index];
+                      final me = _currentUsername!.trim().toLowerCase();
+                      final clientLower =
+                          commission.clientName.trim().toLowerCase();
+                      final isReceived = clientLower != me;
+                      final avatarUrl = isReceived
+                          ? commission.patronAvatarUrl
+                          : commission.artistAvatarUrl;
+                      final cardTitleUsername = isReceived
+                          ? commission.clientName
+                          : (commission.artistUsername != null &&
+                                  commission.artistUsername!.isNotEmpty
+                              ? '@${commission.artistUsername}'
+                              : '...');
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: GestureDetector(
+                        child: _CommissionCard(
+                          avatarUrl: avatarUrl,
+                          cardTitleUsername: cardTitleUsername,
+                          previewLine: _commissionPreviewLine(commission),
+                          commissionNo: commission.id != null
+                              ? 'Commission No#${commission.id}'
+                              : 'Commission No#',
+                          timeLabel: _commissionCardTime(commission),
+                          statusLabel: _displayStatusLabel(commission),
+                          statusColor: _displayStatusColor(commission),
+                          isUnread: commission.hasUnreadMessages,
                           onTap: () async {
-                            final result = await Navigator.push(
+                            await Navigator.push<dynamic>(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => CommissionDetailScreen(
                                     commission: commission),
                               ),
                             );
-                            if (result == true && mounted) {
-                              setState(() {
-                                _commissionsFuture = _loadCommissions();
-                              });
-                            }
+                            if (mounted) await _reloadCommissions();
                           },
-                          child: _CommissionCard(
-                            cardTitleUsername: _direction == _CommissionDirection.sent
-                                ? (commission.artistUsername != null &&
-                                        commission.artistUsername!.isNotEmpty
-                                    ? '@${commission.artistUsername}'
-                                    : '...')
-                                : commission.clientName,
-                            previewLine: _commissionPreviewLine(commission),
-                            commissionNo: commission.id != null
-                                ? 'Commission No#${commission.id}'
-                                : 'Commission No#',
-                            timeLabel: _commissionCardTime(commission),
-                            statusLabel: _displayStatusLabel(commission),
-                            statusColor: _displayStatusColor(commission),
-                            isUnread: commission.hasUnreadMessages,
-                          ),
                         ),
                       );
                     },
@@ -317,116 +361,13 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
   }
 }
 
-class _CommissionActionDropdown extends StatelessWidget {
-  final _CommissionDirection active;
-  final ValueChanged<_CommissionDirection> onChanged;
-
-  const _CommissionActionDropdown({
-    required this.active,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = <_CommissionDirection, String>{
-      _CommissionDirection.received: 'Received',
-      _CommissionDirection.sent: 'Sent',
-    };
-
-    final textStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: Colors.black,
-          fontWeight: FontWeight.w800,
-        );
-
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<_CommissionDirection>(
-          isExpanded: true,
-          isDense: true,
-          value: active,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black87, size: 22),
-          style: textStyle,
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          items: _CommissionDirection.values.map((direction) {
-            return DropdownMenuItem(
-              value: direction,
-              child: Text(labels[direction]!, style: textStyle),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) onChanged(value);
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _CommissionStatusDropdown extends StatelessWidget {
-  final _CommissionStatus active;
-  final ValueChanged<_CommissionStatus> onChanged;
-
-  const _CommissionStatusDropdown({
-    required this.active,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = <_CommissionStatus, String>{
-      _CommissionStatus.all: 'All',
-      _CommissionStatus.pending: 'Pending',
-      _CommissionStatus.accepted: 'Accepted',
-      _CommissionStatus.inProgress: 'In progress',
-      _CommissionStatus.completed: 'Completed',
-      _CommissionStatus.rejected: 'Failed',
-    };
-
-    final textStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: Colors.black,
-          fontWeight: FontWeight.w800,
-        );
-
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<_CommissionStatus>(
-          isExpanded: true,
-          isDense: true,
-          value: active,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black87, size: 22),
-          style: textStyle,
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          items: _CommissionStatus.values.map((status) {
-            return DropdownMenuItem(
-              value: status,
-              child: Text(labels[status]!, style: textStyle),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) onChanged(value);
-          },
-        ),
-      ),
-    );
-  }
-}
-
 class _CommissionCard extends StatelessWidget {
-  static const _unreadBg = Color(0xFFFFEBEB);
+  static const _unreadBg = Color(0xFFFFF0F0);
   static const _unreadBar = Color(0xFFFF9A9A);
-  static const _readBg = Color(0xFFF5F5F6);
+  static const _readBg = Color(0xFFFFFFFF);
   static const _readBar = Color(0xFFB0B0B6);
 
+  final String? avatarUrl;
   final String cardTitleUsername;
   final String previewLine;
   final String commissionNo;
@@ -434,8 +375,10 @@ class _CommissionCard extends StatelessWidget {
   final String statusLabel;
   final Color statusColor;
   final bool isUnread;
+  final VoidCallback onTap;
 
   const _CommissionCard({
+    required this.avatarUrl,
     required this.cardTitleUsername,
     required this.previewLine,
     required this.commissionNo,
@@ -443,6 +386,7 @@ class _CommissionCard extends StatelessWidget {
     required this.statusLabel,
     required this.statusColor,
     required this.isUnread,
+    required this.onTap,
   });
 
   @override
@@ -455,81 +399,88 @@ class _CommissionCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: ColoredBox(
         color: bg,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: Colors.black12,
-                        child: const Icon(Icons.person, color: Color(0xFF111111), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              cardTitleUsername,
-                              style: t.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF111111),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              previewLine,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.bodySmall?.copyWith(
-                                color: const Color(0xFF4A4A4A),
-                                height: 1.25,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              commissionNo,
-                              style: t.labelSmall?.copyWith(
-                                color: const Color(0xFF9B9B9F),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            timeLabel,
-                            style: t.labelSmall?.copyWith(
-                              color: const Color(0xFF9B9B9F),
-                              fontWeight: FontWeight.w600,
+                          ProfileAvatar(
+                            imageUrl: avatarUrl,
+                            radius: 22,
+                            placeholderBackgroundColor: const Color(0xFFFF4A4A),
+                            placeholderIconColor: Colors.white,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  cardTitleUsername,
+                                  style: t.titleSmall?.copyWith(
+                                    fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                                    color: const Color(0xFF111111),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  previewLine,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.bodySmall?.copyWith(
+                                    color: const Color(0xFF4A4A4A),
+                                    height: 1.25,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  commissionNo,
+                                  style: t.labelSmall?.copyWith(
+                                    color: const Color(0xFF9B9B9F),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            statusLabel,
-                            style: t.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: statusColor,
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                timeLabel,
+                                style: t.labelSmall?.copyWith(
+                                  color: const Color(0xFF9B9B9F),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                statusLabel,
+                                style: t.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  Container(width: 7, color: bar),
+                ],
               ),
-              Container(width: 7, color: bar),
-            ],
+            ),
           ),
         ),
       ),

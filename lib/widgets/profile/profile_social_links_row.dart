@@ -120,7 +120,7 @@ class ProfileSocialLinksRow extends StatelessWidget {
                     child: Icon(
                       e.icon,
                       size: 22,
-                      color: e.label == 'Tips' ? const Color(0xFFFF4A4A) : const Color(0xFF3C3C42),
+                      color: const Color(0xFFFF4A4A),
                     ),
                   ),
                 ),

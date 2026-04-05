@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/app_models.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
 import '../../../services/api_client.dart';
 import '../../../widgets/communication/chat_message_content.dart';
 import '../commissions/commission_work_view_screen.dart';
@@ -117,6 +119,10 @@ class _ChatScreenState extends State<ChatScreen> {
         if (snapshot.hasError) {
           return Center(
             child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: BcColors.brandRed,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 setState(() {
                   _messagesFuture = _loadMessages();
@@ -133,7 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Text(
               'Start a conversation',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey,
+                    color: const Color(0xFF6E6E6E),
                     fontWeight: FontWeight.w400,
                   ),
             ),
@@ -150,7 +156,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
         return ListView.builder(
           controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kScreenHorizontalPadding,
+            vertical: 12,
+          ),
           itemCount: messages.length,
           itemBuilder: (context, index) {
             final message = messages[index];
@@ -170,10 +179,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildComposer() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: const EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        10,
+        kScreenHorizontalPadding,
+        12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        border: Border(top: BorderSide(color: BcColors.cardBorder)),
       ),
       child: SafeArea(
         top: false,
@@ -191,7 +205,10 @@ class _ChatScreenState extends State<ChatScreen> {
             filled: true,
             fillColor: const Color(0xFFF2F2F4),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                const EdgeInsets.symmetric(
+                  horizontal: kScreenHorizontalPadding,
+                  vertical: 12,
+                ),
             suffixIcon: IconButton(
               onPressed: _sendMessage,
               icon: const Icon(
@@ -209,12 +226,25 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6F8),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        title: Text(_conversation.name),
+        leading: const BackButton(color: Color(0xFF1F1F24)),
+        title: Text(
+          _conversation.name,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: BcColors.brandRed,
+              ),
+        ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        foregroundColor: const Color(0xFF1F1F24),
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: BcColors.cardBorder),
+        ),
       ),
       body: Column(
         children: [

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 import '../../widgets/home/edit_post_bottom_sheet.dart';
 import '../../widgets/home/feed_post_card.dart';
 
@@ -82,11 +84,15 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F6),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEDEDF1),
+        leading: const BackButton(color: BcColors.ink),
+        title: Text('#$_tag', style: bcPushedScreenTitleStyle(context)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        title: Text('#$_tag', style: Theme.of(context).textTheme.titleLarge),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -103,6 +109,9 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
                       ),
                     )
                   : ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: kScreenHorizontalPadding,
+                      ),
                       itemCount: _posts.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
@@ -135,6 +144,7 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
                           },
                           isOwner: isOwner,
                           onEditPost: isOwner ? () => _editPost(p) : null,
+                          isEdited: p.isEditedPost,
                         );
                       },
                     ),
@@ -156,6 +166,7 @@ class _TaggedPost {
   final int likeCount;
   final int commentCount;
   final bool likedByMe;
+  final String? editedAt;
 
   const _TaggedPost({
     required this.id,
@@ -171,12 +182,21 @@ class _TaggedPost {
     required this.likeCount,
     required this.commentCount,
     required this.likedByMe,
+    this.editedAt,
   });
+
+  bool get isEditedPost {
+    final e = editedAt?.trim() ?? '';
+    return e.isNotEmpty;
+  }
 
   factory _TaggedPost.fromJson(Map<String, dynamic> json) {
     final rawTags = json['tags'];
     final tags = rawTags is List ? rawTags.map((e) => '$e').toList() : const <String>[];
     final av = json['authorAvatarUrl'];
+    final rawEdited = json['editedAt'];
+    final editedAt =
+        rawEdited is String && rawEdited.trim().isNotEmpty ? rawEdited.trim() : null;
     return _TaggedPost(
       id: _readInt(json['id']),
       userId: _readInt(json['userId']),
@@ -191,6 +211,7 @@ class _TaggedPost {
       likeCount: _readInt(json['likeCount']),
       commentCount: _readInt(json['commentCount']),
       likedByMe: (json['likedByMe'] as bool?) ?? false,
+      editedAt: editedAt,
     );
   }
 }

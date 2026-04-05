@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../models/app_models.dart';
 import '../../../navigation/user_profile_navigation.dart';
 import '../../../services/api_client.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
 import 'commission_payment_success_screen.dart';
 
 /// Opens the provider's public site in the system browser.
@@ -178,15 +180,23 @@ class _CommissionPaymentConfirmationScreenState
     final t = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(color: Colors.black),
-        title: const Text('Payment', style: TextStyle(color: Colors.black)),
+        leading: const BackButton(color: BcColors.ink),
+        title: Text('Payment', style: bcPushedScreenTitleStyle(context)),
         backgroundColor: Colors.white,
-        elevation: 1,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
-      backgroundColor: const Color(0xFFF2F2F4),
+      backgroundColor: BcColors.pageBackground,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(
+            kScreenHorizontalPadding,
+            16,
+            kScreenHorizontalPadding,
+            16,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -198,10 +208,12 @@ class _CommissionPaymentConfirmationScreenState
                     color: const Color(0xFFFFF2F2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
+                  child: Text(
                     'This is an urgent commission (+20% fee)',
                     style: TextStyle(
-                        color: Color(0xFFD32F2F), fontWeight: FontWeight.bold),
+                      color: BcColors.brandRed,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               if (widget.isUrgent) const SizedBox(height: 18),
@@ -276,7 +288,7 @@ class _CommissionPaymentConfirmationScreenState
                       ? null
                       : _openPaymentProviderInBrowser,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD32F2F),
+                    backgroundColor: BcColors.brandRed,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: _openingBrowser
@@ -300,8 +312,8 @@ class _CommissionPaymentConfirmationScreenState
                   onPressed: _openingBrowser ? null : _openPaymentProviderInBrowser,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    foregroundColor: const Color(0xFFD32F2F),
-                    side: const BorderSide(color: Color(0xFFD32F2F)),
+                    foregroundColor: BcColors.brandRed,
+                    side: BorderSide(color: BcColors.brandRed),
                   ),
                   child: const Text('Open payment page again'),
                 ),
@@ -309,7 +321,7 @@ class _CommissionPaymentConfirmationScreenState
                 ElevatedButton(
                   onPressed: _isProcessing ? null : _processPayment,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD32F2F),
+                    backgroundColor: BcColors.brandRed,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: _isProcessing
@@ -343,7 +355,7 @@ class _CommissionPaymentConfirmationScreenState
     final t = Theme.of(context).textTheme;
     final amountStyle = (highlighted ? t.titleMedium : t.bodyMedium)?.copyWith(
       fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-      color: highlighted ? const Color(0xFFD32F2F) : Colors.black87,
+      color: highlighted ? BcColors.brandRed : Colors.black87,
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

@@ -8,6 +8,7 @@ import '../../models/calendar_event.dart';
 import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
 import 'nearby_events_map_screen.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/content_spacing.dart';
 import '../../widgets/common/bc_app_bar.dart';
 
@@ -33,6 +34,8 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
   late int _selectedDay;
   late Future<List<CalendarEvent>> _eventsFuture;
   _EventSortMode _eventSortMode = _EventSortMode.timeEarliest;
+  /// Full month grid is tall; start collapsed so the screen feels lighter.
+  bool _calendarExpanded = false;
 
   @override
   void initState() {
@@ -115,18 +118,23 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
-                16,
+                kScreenHorizontalPadding,
                 16 + kContentBelowAppBarPadding,
-                16,
+                kScreenHorizontalPadding,
                 16,
               ),
               children: [
               _CalendarCard(
+                year: _activeMonth.year,
+                month: _activeMonth.month,
                 monthLabel: header,
                 leadingBlanks: leadingBlanks,
                 daysInMonth: daysInMonth,
                 selectedDay: _selectedDay,
                 daysWithEvents: daysWithEventsInMonth,
+                expanded: _calendarExpanded,
+                onToggleExpanded: () =>
+                    setState(() => _calendarExpanded = !_calendarExpanded),
                 onPrevMonth: _prevMonth,
                 onNextMonth: _nextMonth,
                 onSelectDay: (day) => setState(() => _selectedDay = day),
@@ -290,21 +298,29 @@ class _CalendarMapScreenState extends State<CalendarMapScreen> {
 }
 
 class _CalendarCard extends StatelessWidget {
+  final int year;
+  final int month;
   final String monthLabel;
   final int leadingBlanks;
   final int daysInMonth;
   final int selectedDay;
   final Set<int> daysWithEvents;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
   final VoidCallback onPrevMonth;
   final VoidCallback onNextMonth;
   final ValueChanged<int> onSelectDay;
 
   const _CalendarCard({
+    required this.year,
+    required this.month,
     required this.monthLabel,
     required this.leadingBlanks,
     required this.daysInMonth,
     required this.selectedDay,
     required this.daysWithEvents,
+    required this.expanded,
+    required this.onToggleExpanded,
     required this.onPrevMonth,
     required this.onNextMonth,
     required this.onSelectDay,
@@ -361,18 +377,12 @@ class _CalendarCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFE1E1E4),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
-      padding: const EdgeInsets.all(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        children: [
             Row(
               children: [
                 IconButton(
@@ -390,38 +400,99 @@ class _CalendarCard extends StatelessWidget {
                   onPressed: onNextMonth,
                   icon: const Icon(Icons.chevron_right),
                 ),
+                IconButton(
+                  tooltip: expanded ? 'Hide calendar' : 'Show calendar',
+                  onPressed: onToggleExpanded,
+                  icon: Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                for (final label in weekdayLabels)
-                  Expanded(
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: t.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                        color: const Color(0xFFB0B0B5),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeInOutCubic,
+              alignment: Alignment.topCenter,
+              child: expanded
+                  ? Column(
+                      key: const ValueKey('calendarFull'),
+                      children: [
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            for (final label in weekdayLabels)
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  textAlign: TextAlign.center,
+                                  style: t.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.0,
+                                    color: const Color(0xFFB0B0B5),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        GridView.count(
+                          crossAxisCount: 7,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 6,
+                          children: items,
+                        ),
+                      ],
+                    )
+                  : Padding(
+                      key: const ValueKey('calendarCompact'),
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Material(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                          onTap: onToggleExpanded,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 18,
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Selected: ${_monthShort(DateTime(year, month, selectedDay))} $selectedDay, $year',
+                                    style: t.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF3B3B3B),
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  'Show',
+                                  style: t.labelLarge?.copyWith(
+                                    color: const Color(0xFFFF3D3D),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 7,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 6,
-              children: items,
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -703,18 +774,18 @@ class _EventLocationFullscreenScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F6),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF3F3F6),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: BcColors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Event location',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: Text('Event location', style: bcPushedScreenTitleStyle(context)),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: SafeArea(
         top: false,
@@ -854,22 +925,24 @@ class _EventDetailsScreenState extends State<_EventDetailsScreen> {
 
     final t = Theme.of(context).textTheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F6),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF3F3F6),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
         titleSpacing: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Back to Events',
-          style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
+        leading: const BackButton(color: BcColors.ink),
+        title: Text('Back to Events', style: bcPushedScreenTitleStyle(context)),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 6, 14, 16),
+        padding: const EdgeInsets.fromLTRB(
+          kScreenHorizontalPadding,
+          6,
+          kScreenHorizontalPadding,
+          16,
+        ),
         children: [
           Container(
             padding: const EdgeInsets.all(12),

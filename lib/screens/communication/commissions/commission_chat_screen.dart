@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/app_models.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
 import '../../../services/api_client.dart';
 import '../../../widgets/communication/chat_message_content.dart';
 import 'commission_detail_screen.dart';
 import 'commission_work_view_screen.dart';
-
-const Color _kCommissionSubheaderBg = Color(0xFFEDEDF1);
 
 class CommissionChatScreen extends StatefulWidget {
   final Conversation conversation;
@@ -198,104 +198,103 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
     }
   }
 
-  Widget _buildCommissionHeader() {
-    final cid = widget.commissionId;
-    return Material(
-      color: Colors.white,
-      elevation: 1,
-      shadowColor: Colors.black26,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const BackButton(color: Colors.black),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.black12,
-                          child: Icon(Icons.person,
-                              color: Colors.grey.shade700, size: 26),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _chatPeerDisplayName(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                            color: Color(0xFF111111),
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.black87),
-                    onSelected: (value) {
-                      if (value == 'details') {
-                        _openCommissionDetailsFromChat();
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: 'details',
-                        child: Text('Commission details'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              color: _kCommissionSubheaderBg,
-              child: Row(
-                children: [
-                  Text(
-                    'Commission No#$cid',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: const Color(0xFF444444),
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _commissionTitle ?? 'Request',
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF111111),
-                          ),
-                    ),
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 40, minHeight: 36),
-                    icon: const Icon(Icons.brush_outlined,
-                        size: 22, color: Color(0xFF444444)),
-                    onPressed: _onBrushIconPressed,
-                    tooltip: 'Commission work',
-                  ),
-                ],
-              ),
+  PreferredSizeWidget _commissionAppBar() {
+    return AppBar(
+      leading: const BackButton(color: Color(0xFF1F1F24)),
+      title: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: const Color(0xFFE8E8EC),
+            child: Icon(Icons.person, color: const Color(0xFF6E6E6E), size: 24),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _chatPeerDisplayName(),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: BcColors.brandRed,
+                ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+      centerTitle: true,
+      toolbarHeight: 90,
+      actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Color(0xFF1F1F24)),
+          onSelected: (value) {
+            if (value == 'details') {
+              _openCommissionDetailsFromChat();
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(
+              value: 'details',
+              child: Text('Commission details'),
             ),
           ],
         ),
+      ],
+      backgroundColor: Colors.white,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Divider(height: 1, thickness: 1, color: BcColors.cardBorder),
+      ),
+    );
+  }
+
+  Widget _buildCommissionContextStrip() {
+    final cid = widget.commissionId;
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: BcColors.cardBorder)),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kScreenHorizontalPadding,
+        vertical: 10,
+      ),
+      child: Row(
+        children: [
+          Text(
+            'Commission No#$cid',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFF8C8C90),
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          Expanded(
+            child: Text(
+              _commissionTitle ?? 'Request',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1A1A1E),
+                  ),
+            ),
+          ),
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 36),
+            icon: const Icon(
+              Icons.brush_outlined,
+              size: 22,
+              color: Color(0xFF1F1F24),
+            ),
+            onPressed: _onBrushIconPressed,
+            tooltip: 'Commission work',
+          ),
+        ],
       ),
     );
   }
@@ -310,6 +309,10 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
         if (snapshot.hasError) {
           return Center(
             child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: BcColors.brandRed,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 setState(() {
                   _messagesFuture = _loadMessages();
@@ -326,7 +329,7 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
             child: Text(
               'No messages in this commission chat yet.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey,
+                    color: const Color(0xFF6E6E6E),
                     fontWeight: FontWeight.w400,
                   ),
             ),
@@ -341,7 +344,10 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
 
         return ListView.builder(
           controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: kScreenHorizontalPadding,
+            vertical: 12,
+          ),
           itemCount: messages.length,
           itemBuilder: (context, index) {
             final message = messages[index];
@@ -360,10 +366,20 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
   }
 
   Widget _buildCompletionBanner() {
-    return Material(
-      color: const Color(0xFFE8F5E9),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        10,
+        kScreenHorizontalPadding,
+        8,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: BcColors.cardBorder),
+        ),
         child: Row(
           children: [
             const Icon(Icons.check_circle_outline, color: Color(0xFF2E7D32)),
@@ -374,6 +390,7 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF1B5E20),
                       fontWeight: FontWeight.w600,
+                      height: 1.35,
                     ),
               ),
             ),
@@ -385,10 +402,15 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
 
   Widget _buildComposer() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: const EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        10,
+        kScreenHorizontalPadding,
+        12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        border: Border(top: BorderSide(color: BcColors.cardBorder)),
       ),
       child: SafeArea(
         top: false,
@@ -407,14 +429,17 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
             filled: true,
             fillColor: const Color(0xFFF2F2F4),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                const EdgeInsets.symmetric(
+                  horizontal: kScreenHorizontalPadding,
+                  vertical: 12,
+                ),
             suffixIcon: IconButton(
               onPressed: _commissionStatusLoaded ? _sendMessage : null,
               icon: Icon(
                 Icons.send_rounded,
                 color: _commissionStatusLoaded
-                    ? Colors.grey.shade600
-                    : Colors.grey.shade400,
+                    ? BcColors.brandRed
+                    : const Color(0xFFB0B0B6),
               ),
             ),
           ),
@@ -427,10 +452,11 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: BcColors.pageBackground,
+      appBar: _commissionAppBar(),
       body: Column(
         children: [
-          _buildCommissionHeader(),
+          _buildCommissionContextStrip(),
           if (_commissionMessagingClosed) _buildCompletionBanner(),
           Expanded(child: _buildMessageList()),
           if (!_commissionMessagingClosed) _buildComposer(),

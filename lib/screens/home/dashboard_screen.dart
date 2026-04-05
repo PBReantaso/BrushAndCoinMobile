@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../navigation/user_profile_navigation.dart';
 import '../../services/api_client.dart';
 import '../search/tagged_posts_screen.dart';
 import '../../theme/content_spacing.dart';
-import '../../state/app_profile_scope.dart';
 import '../../widgets/common/bc_app_bar.dart';
 import '../../widgets/home/edit_post_bottom_sheet.dart';
 import '../../widgets/home/feed_post_card.dart';
-import '../../widgets/profile/profile_avatar.dart';
+import '../../widgets/home/post_comments_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -123,7 +121,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SliverToBoxAdapter(
                         child: SizedBox(height: kContentBelowAppBarPadding),
                       ),
-                      SliverList.separated(
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kScreenHorizontalPadding,
+                        ),
+                        sliver: SliverList.separated(
                         itemCount: _posts.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
@@ -149,8 +151,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             onTagTap: (tag) => _openTag(tag),
                             isOwner: isOwner,
                             onEditPost: isOwner ? () => _editPost(p) : null,
+                            isEdited: p.isEditedPost,
                           );
                         },
+                        ),
                       ),
                       const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     ],
@@ -194,7 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return _CommentsSheet(
+        return PostCommentsSheet(
           postId: post.id,
           apiClient: _apiClient,
           onCommentAdded: () {
@@ -250,273 +254,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _CommentsSheet extends StatefulWidget {
-  final int postId;
-  final ApiClient apiClient;
-  final VoidCallback onCommentAdded;
-
-  const _CommentsSheet({
-    required this.postId,
-    required this.apiClient,
-    required this.onCommentAdded,
-  });
-
-  @override
-  State<_CommentsSheet> createState() => _CommentsSheetState();
-}
-
-class _CommentsSheetState extends State<_CommentsSheet> {
-  final TextEditingController _commentController = TextEditingController();
-  bool _loading = true;
-  bool _posting = false;
-  String? _error;
-  List<_PostComment> _comments = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadComments();
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadComments() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final data = await widget.apiClient.fetchPostComments(widget.postId);
-      if (!mounted) return;
-      setState(() {
-        _comments = data.map(_PostComment.fromJson).toList();
-      });
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
-  }
-
-  Future<void> _submitComment() async {
-    final text = _commentController.text.trim();
-    if (text.isEmpty || _posting) return;
-    setState(() => _posting = true);
-    try {
-      await widget.apiClient.commentOnPost(postId: widget.postId, comment: text);
-      _commentController.clear();
-      widget.onCommentAdded();
-      await _loadComments();
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    } finally {
-      if (mounted) setState(() => _posting = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final kb = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.72,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8F8FB),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 42,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFC8C8CF),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Comments',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 10),
-            const Divider(height: 1),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(child: Text(_error!))
-                      : _comments.isEmpty
-                          ? const Center(child: Text('No comments yet. Start the conversation.'))
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
-                              itemCount: _comments.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final c = _comments[index];
-                                return InkWell(
-                                  onTap: c.userId > 0
-                                      ? () {
-                                          pushUserProfile(
-                                            context,
-                                            userId: c.userId,
-                                            username: c.authorName,
-                                          );
-                                        }
-                                      : null,
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      ProfileAvatar(
-                                        imageUrl: c.authorAvatarUrl,
-                                        radius: 16,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  c.authorName,
-                                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                                        fontWeight: FontWeight.w700,
-                                                        color: const Color(0xFF1A1A1E),
-                                                      ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  c.timeAgo,
-                                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                        color: const Color(0xFF7A7A82),
-                                                        fontWeight: FontWeight.w400,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              c.comment,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                    color: const Color(0xFF2F2F36),
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-            ),
-            const Divider(height: 1),
-            Padding(
-              padding: EdgeInsets.fromLTRB(12, 10, 12, kb > 0 ? kb + 8 : 10),
-              child: Row(
-                children: [
-                  ListenableBuilder(
-                    listenable: AppProfileScope.of(context),
-                    builder: (context, _) {
-                      final url = AppProfileScope.of(context).profile.avatarUrl;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ProfileAvatar(imageUrl: url, radius: 18),
-                      );
-                    },
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      minLines: 1,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'Join the conversation...',
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(999),
-                          borderSide: const BorderSide(color: Color(0xFFE0E0E8)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(999),
-                          borderSide: const BorderSide(color: Color(0xFFE0E0E8)),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _posting ? null : _submitComment,
-                    icon: _posting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_outlined),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PostComment {
-  final int userId;
-  final String authorName;
-  final String? authorAvatarUrl;
-  final String comment;
-  final DateTime? createdAt;
-
-  const _PostComment({
-    required this.userId,
-    required this.authorName,
-    this.authorAvatarUrl,
-    required this.comment,
-    required this.createdAt,
-  });
-
-  factory _PostComment.fromJson(Map<String, dynamic> json) {
-    final av = json['authorAvatarUrl'];
-    return _PostComment(
-      userId: _readInt(json['userId']),
-      authorName: (json['authorName'] as String?) ?? 'User',
-      authorAvatarUrl: av is String && av.trim().isNotEmpty ? av.trim() : null,
-      comment: (json['comment'] as String?) ?? '',
-      createdAt: DateTime.tryParse((json['createdAt'] as String?) ?? ''),
-    );
-  }
-
-  String get timeAgo {
-    if (createdAt == null) return '';
-    final now = DateTime.now();
-    final diff = now.difference(createdAt!);
-    if (diff.inMinutes < 1) return 'now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m';
-    if (diff.inDays < 1) return '${diff.inHours}h';
-    return '${diff.inDays}d';
-  }
-}
-
 class _FeedPost {
   final int id;
   final int userId;
@@ -531,6 +268,8 @@ class _FeedPost {
   final int likeCount;
   final int commentCount;
   final bool likedByMe;
+  /// ISO timestamp from API when the post was last edited; null if never edited.
+  final String? editedAt;
 
   const _FeedPost({
     required this.id,
@@ -546,12 +285,21 @@ class _FeedPost {
     required this.likeCount,
     required this.commentCount,
     required this.likedByMe,
+    this.editedAt,
   });
+
+  bool get isEditedPost {
+    final e = editedAt?.trim() ?? '';
+    return e.isNotEmpty;
+  }
 
   factory _FeedPost.fromJson(Map<String, dynamic> json) {
     final rawTags = json['tags'];
     final tags = rawTags is List ? rawTags.map((e) => '$e').toList() : const <String>[];
     final av = json['authorAvatarUrl'];
+    final rawEdited = json['editedAt'];
+    final editedAt =
+        rawEdited is String && rawEdited.trim().isNotEmpty ? rawEdited.trim() : null;
     return _FeedPost(
       id: _readInt(json['id']),
       userId: _readInt(json['userId']),
@@ -566,6 +314,7 @@ class _FeedPost {
       likeCount: _readInt(json['likeCount']),
       commentCount: _readInt(json['commentCount']),
       likedByMe: (json['likedByMe'] as bool?) ?? false,
+      editedAt: editedAt,
     );
   }
 
@@ -581,6 +330,7 @@ class _FeedPost {
     int? likeCount,
     int? commentCount,
     bool? likedByMe,
+    String? editedAt,
   }) {
     return _FeedPost(
       id: id,
@@ -596,6 +346,7 @@ class _FeedPost {
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
       likedByMe: likedByMe ?? this.likedByMe,
+      editedAt: editedAt ?? this.editedAt,
     );
   }
 }

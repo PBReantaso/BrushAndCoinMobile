@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../models/app_models.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 import '../../services/api_client.dart';
 import '../../state/inbox_badge_scope.dart';
 import '../communication/communication_screen.dart';
@@ -72,12 +74,18 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  static const _unreadBg = Color(0xFFFFF0F0);
+  static const _unreadBar = Color(0xFFFF9A9A);
+  static const _readBg = Color(0xFFFFFFFF);
+  static const _readBar = Color(0xFFB0B0B6);
+
   final _api = ApiClient();
   final _scrollController = ScrollController();
   List<AppNotificationItem> _items = [];
   int? _nextBeforeId;
   bool _loading = true;
   bool _loadingMore = false;
+  bool _markingAllRead = false;
   String? _error;
 
   @override
@@ -148,6 +156,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  bool get _hasUnread => _items.any((n) => n.isUnread);
+
+  Future<void> _markAllRead() async {
+    if (!_hasUnread || _markingAllRead) return;
+    setState(() => _markingAllRead = true);
+    try {
+      await _api.markAllNotificationsRead();
+      if (!mounted) return;
+      final now = DateTime.now();
+      setState(() {
+        _items = [
+          for (final n in _items)
+            AppNotificationItem(
+              id: n.id,
+              type: n.type,
+              title: n.title,
+              body: n.body,
+              payload: n.payload,
+              readAt: n.readAt ?? now,
+              createdAt: n.createdAt,
+            ),
+        ];
+        _markingAllRead = false;
+      });
+      InboxBadgeScope.maybeOf(context)?.refresh();
+    } catch (_) {
+      if (mounted) setState(() => _markingAllRead = false);
+    }
+  }
+
   Future<void> _onTapItem(AppNotificationItem item) async {
     try {
       await _api.markNotificationRead(item.id);
@@ -214,10 +252,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F6),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        leading: const BackButton(color: BcColors.ink),
+        title: Text('Notifications', style: bcPushedScreenTitleStyle(context)),
+        backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        bottom: const BcAppBarBottomLine(),
+        actions: [
+          if (!_loading && _error == null && _items.isNotEmpty)
+            TextButton(
+              onPressed: _hasUnread && !_markingAllRead ? _markAllRead : null,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFF4A4A),
+                disabledForegroundColor: const Color(0xFFB0B0B6),
+              ),
+              child: _markingAllRead
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFFFF4A4A),
+                      ),
+                    )
+                  : const Text('Read all'),
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => _load(initial: true),
@@ -226,7 +289,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             : _error != null
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.fromLTRB(
+                      kScreenHorizontalPadding,
+                      24,
+                      kScreenHorizontalPadding,
+                      24,
+                    ),
                     children: [
                       Text(_error!, style: Theme.of(context).textTheme.bodyMedium),
                       const SizedBox(height: 16),
@@ -239,6 +307,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 : _items.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kScreenHorizontalPadding,
+                        ),
                         children: const [
                           SizedBox(height: 120),
                           Center(child: Text('No notifications yet.')),
@@ -247,12 +318,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     : ListView.builder(
                         controller: _scrollController,
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.fromLTRB(
+                          kScreenHorizontalPadding,
+                          8,
+                          kScreenHorizontalPadding,
+                          8,
+                        ),
                         itemCount: _items.length + (_loadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
                           if (index >= _items.length) {
                             return const Padding(
-                              padding: EdgeInsets.all(16),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: kScreenHorizontalPadding,
+                                vertical: 16,
+                              ),
                               child: Center(child: CircularProgressIndicator()),
                             );
                           }
@@ -262,64 +341,76 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               '${local.month}/${local.day}/${local.year} · '
                               '${local.hour.toString().padLeft(2, '0')}:'
                               '${local.minute.toString().padLeft(2, '0')}';
-                          return Card(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            elevation: 0,
-                            color: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          final bg = n.isUnread ? _unreadBg : _readBg;
+                          final bar = n.isUnread ? _unreadBar : _readBar;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: kScreenHorizontalPadding,
+                              vertical: 6,
                             ),
-                            child: InkWell(
+                            child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () => _onTapItem(n),
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (n.isUnread)
-                                      Container(
-                                        width: 8,
-                                        height: 8,
-                                        margin: const EdgeInsets.only(top: 6, right: 10),
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFFF4A4A),
-                                          shape: BoxShape.circle,
-                                        ),
-                                      )
-                                    else
-                                      const SizedBox(width: 18),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                              child: ColoredBox(
+                                color: bg,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _onTapItem(n),
+                                    child: IntrinsicHeight(
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
-                                          Text(
-                                            n.title,
-                                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                                  fontWeight:
-                                                      n.isUnread ? FontWeight.w700 : FontWeight.w600,
-                                                ),
-                                          ),
-                                          if (n.body.isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              n.body,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                    color: const Color(0xFF55555C),
+                                          Expanded(
+                                            child: Padding(
+                                              padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    n.title,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleSmall
+                                                        ?.copyWith(
+                                                          fontWeight: n.isUnread
+                                                              ? FontWeight.w700
+                                                              : FontWeight.w600,
+                                                        ),
                                                   ),
+                                                  if (n.body.isNotEmpty) ...[
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      n.body,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.copyWith(
+                                                            color: const Color(0xFF55555C),
+                                                          ),
+                                                    ),
+                                                  ],
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    time,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          color: const Color(0xFF8B8B8B),
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ],
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            time,
-                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                  color: const Color(0xFF8B8B8B),
-                                                ),
+                                          ),
+                                          Container(
+                                            width: 7,
+                                            color: bar,
                                           ),
                                         ],
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),

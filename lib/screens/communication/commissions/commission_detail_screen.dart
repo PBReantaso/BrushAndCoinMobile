@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/content_spacing.dart';
 import 'commission_chat_screen.dart';
 import 'commission_payment_confirmation_screen.dart';
 import 'commission_work_view_screen.dart';
@@ -100,6 +103,18 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   void initState() {
     super.initState();
     _loadCurrentUsername();
+    final cid = widget.commission.id;
+    if (cid != null && cid > 0) {
+      unawaited(_markViewed(cid));
+    }
+  }
+
+  Future<void> _markViewed(int commissionId) async {
+    try {
+      await _apiClient.markCommissionViewed(commissionId);
+    } catch (_) {
+      // List still shows unread until next successful sync; avoid blocking UI.
+    }
   }
 
   Future<void> _loadCurrentUsername() async {
@@ -328,72 +343,122 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(color: Colors.black),
+        leading: const BackButton(color: BcColors.ink),
         title: _isCommissioner
             ? _buildCommissionerHeader()
-            : const Text('Commissioner Request',
-                style: TextStyle(color: const Color(0xFFD32F2F))),
+            : Text(
+                'Commissioner Request',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: BcColors.brandRed,
+                    ),
+              ),
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        bottom: const BcAppBarBottomLine(),
       ),
-      backgroundColor: const Color(0xFFF2F2F4),
+      backgroundColor: BcColors.pageBackground,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(
+                kScreenHorizontalPadding,
+                12,
+                kScreenHorizontalPadding,
+                24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDetailRow('Title', _c.title),
-                  const SizedBox(height: 12),
-                  _buildDetailRow('Description', _c.description),
-                  const SizedBox(height: 12),
-                  _buildDetailRow('Budget',
-                      '₱${_c.budget.toStringAsFixed(2)}',
-                      colored: true),
-                  if (_c.preferredPaymentMethod != null &&
-                      _c.preferredPaymentMethod!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    _buildDetailRow(
-                      'Preferred payment',
-                      _paymentMethodDisplayLabel(
-                          _c.preferredPaymentMethod!),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  if (_c.deadline != null)
-                    _buildDetailRow(
-                        'Preferred Deadline', _c.deadline ?? ''),
-                  if (_c.deadline != null)
-                    const SizedBox(height: 12),
-                  if (_c.specialRequirements.isNotEmpty)
-                    _buildDetailRow('Special Requirements',
-                        _c.specialRequirements),
-                  if (_c.specialRequirements.isNotEmpty)
-                    const SizedBox(height: 12),
-                  if (_c.referenceImages.isNotEmpty) ...[
-                    const Text('Reference Images',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    _buildReferenceImages(),
-                    const SizedBox(height: 12),
-                  ],
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: BcColors.cardBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailRow('Title', _c.title),
+                        const SizedBox(height: 12),
+                        _buildDetailRow('Description', _c.description),
+                        const SizedBox(height: 12),
+                        _buildDetailRow(
+                          'Budget',
+                          '₱${_c.budget.toStringAsFixed(2)}',
+                          colored: true,
+                        ),
+                        if (_c.preferredPaymentMethod != null &&
+                            _c.preferredPaymentMethod!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildDetailRow(
+                            'Preferred payment',
+                            _paymentMethodDisplayLabel(
+                              _c.preferredPaymentMethod!,
+                            ),
+                          ),
+                        ],
+                        if (_c.deadline != null) ...[
+                          const SizedBox(height: 12),
+                          _buildDetailRow(
+                            'Preferred Deadline',
+                            _c.deadline ?? '',
+                          ),
+                        ],
+                        if (_c.specialRequirements.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildDetailRow(
+                            'Special Requirements',
+                            _c.specialRequirements,
+                          ),
+                        ],
+                        if (_c.referenceImages.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'Reference Images',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF8C8C90),
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildReferenceImages(),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: BcColors.cardBorder),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline, color: Colors.orange),
-                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: _c.isUrgent
+                              ? const Color(0xFFFFA000)
+                              : const Color(0xFF8C8C90),
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'This is an ${_c.isUrgent ? 'urgent' : 'normal'} commission',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: const Color(0xFF3B3B3B),
+                                  height: 1.35,
+                                ),
                           ),
                         ),
                       ],
@@ -401,22 +466,28 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   Container(
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: BcColors.cardBorder),
                     ),
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Pricing Summary',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        _buildPricingRow(
-                            'Base budget', _c.budget),
+                        Text(
+                          'Pricing Summary',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF1A1A1E),
+                              ),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildPricingRow('Base budget', _c.budget),
                         _buildPricingRow('Urgency Fee (20%)', _urgencyFee),
                         _buildPricingRow('Platform Fee (5%)', _platformFee),
-                        const Divider(),
+                        const Divider(height: 20, color: Color(0xFFE6E6EA)),
                         _buildPricingRow('Total Amount', _totalAmount,
                             bold: true, colored: true),
                       ],
@@ -440,19 +511,32 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                           Expanded(
                             child: OutlinedButton(
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
+                                foregroundColor: const Color(0xFF101010),
+                                side: const BorderSide(color: Color(0xFF424242)),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
                               ),
                               onPressed: _isProcessing ? null : _reject,
-                              child: const Text('Reject'),
+                              child: const Text(
+                                'Reject',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD32F2F),
+                                backgroundColor: const Color(0xFF2E7D32),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                surfaceTintColor: Colors.transparent,
                                 padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
                               ),
                               onPressed: _isProcessing ? null : _accept,
                               child: _isProcessing
@@ -464,9 +548,13 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text('Accept',
-                                      style:
-                                          TextStyle(fontWeight: FontWeight.bold)),
+                                  : const Text(
+                                      'Accept',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                             ),
                           ),
                         ],
@@ -503,8 +591,20 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                               ? null
                               : () => _submitArtwork(),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD32F2F),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: BcColors.brandRed,
+                            foregroundColor: Colors.white,
+                            disabledForegroundColor: Colors.white70,
+                            elevation: 0,
+                            surfaceTintColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
                           child: _isSubmittingArtwork
                               ? const SizedBox(
@@ -517,7 +617,10 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                                 )
                               : const Text(
                                   'Submit revised work',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ],
@@ -538,8 +641,20 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                               ? null
                               : () => _submitArtwork(),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD32F2F),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: BcColors.brandRed,
+                            foregroundColor: Colors.white,
+                            disabledForegroundColor: Colors.white70,
+                            elevation: 0,
+                            surfaceTintColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
                           child: _isSubmittingArtwork
                               ? const SizedBox(
@@ -552,7 +667,10 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                                 )
                               : const Text(
                                   'Submit first work',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ] else ...[
@@ -603,7 +721,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                         child: const Text(
                           'This commission was rejected.',
                           style: TextStyle(
-                            color: Color(0xFFD32F2F),
+                            color: BcColors.brandRed,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -879,9 +997,12 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   Widget _buildCommissionerHeader() {
     return Row(
       children: [
-        const Text(
+        Text(
           'Commission',
-          style: TextStyle(color: Color(0xFFD32F2F)),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: BcColors.brandRed,
+              ),
         ),
         const SizedBox(width: 8),
         GestureDetector(
@@ -948,32 +1069,34 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
         break;
       case ProjectStatus.rejected:
         actionText = 'Unfortunately, your commission request was rejected.';
-        actionColor = const Color(0xFFD32F2F);
+        actionColor = BcColors.brandRed;
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: BcColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Commission Status',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1A1A1E),
                 ),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: actionColor.withOpacity(0.1),
+              color: actionColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: actionColor.withOpacity(0.3)),
+              border: Border.all(color: actionColor.withValues(alpha: 0.3)),
             ),
             child: Text(
               actionText,
@@ -987,13 +1110,19 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
               child: ElevatedButton(
                 onPressed: onPressed,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD32F2F),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  backgroundColor: BcColors.brandRed,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  surfaceTintColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
                 child: Text(
                   buttonText,
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
@@ -1004,12 +1133,19 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
+              child: ElevatedButton(
                 onPressed: _patronCompleting ? null : _patronCompleteAndReleaseEscrow,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFD32F2F),
-                  side: const BorderSide(color: Color(0xFFD32F2F)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D32),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  disabledForegroundColor: Colors.grey.shade600,
+                  elevation: 0,
+                  surfaceTintColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
                 child: _patronCompleting
                     ? const SizedBox(
@@ -1017,12 +1153,19 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                         width: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFFD32F2F),
+                          color: Colors.white,
                         ),
                       )
                     : const Text(
                         'Accept work & release payment',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          fontSize: 14,
+                          height: 1.25,
+                        ),
                       ),
               ),
             ),
@@ -1037,20 +1180,29 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: BcColors.cardBorder),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Artwork Submission',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'Artwork Submission',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1A1A1E),
+                    ),
+              ),
               const SizedBox(height: 8),
-              const Text('PNG, JPG, GIF up to 10MB',
-                  style: TextStyle(color: Colors.grey)),
+              Text(
+                'PNG, JPG, GIF up to 10MB',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF8C8C90),
+                    ),
+              ),
               const SizedBox(height: 12),
               GestureDetector(
                 onTap: _pickSubmissionImage,
@@ -1059,10 +1211,14 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey, width: 1.2),
+                    border: Border.all(color: BcColors.cardBorder),
                   ),
-                  child: const Text('Click to upload',
-                      style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'Click to upload',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF8C8C90),
+                        ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1122,14 +1278,17 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
       children: [
         Text(
           label,
-          style: t.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          style: t.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF8C8C90),
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: t.bodyMedium?.copyWith(
-            color: colored ? const Color(0xFFD32F2F) : Colors.black87,
-            fontWeight: colored ? FontWeight.bold : FontWeight.normal,
+            color: colored ? BcColors.brandRed : const Color(0xFF1A1A1E),
+            fontWeight: colored ? FontWeight.w800 : FontWeight.w500,
           ),
         ),
       ],
@@ -1181,8 +1340,8 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
           Text(
             '₱${amount.toStringAsFixed(2)}',
             style: TextStyle(
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-              color: colored ? const Color(0xFFD32F2F) : Colors.black87,
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+              color: colored ? BcColors.brandRed : const Color(0xFF1A1A1E),
             ),
           ),
         ],

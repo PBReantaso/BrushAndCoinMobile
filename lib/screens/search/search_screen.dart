@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../navigation/user_profile_navigation.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 import '../../services/api_client.dart';
 import '../../services/recent_searches_storage.dart';
+import '../../widgets/profile/profile_avatar.dart';
 import 'tagged_posts_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -18,11 +21,12 @@ class _SearchScreenState extends State<SearchScreen> {
   final _api = ApiClient();
   final _controller = TextEditingController();
   Timer? _debounce;
-  List<RecentSearchUser> _recent = [];
+  RecentSearchSnapshot _recent = RecentSearchSnapshot.empty;
   List<_SearchHit> _results = [];
   bool _loadingRecent = true;
   bool _loadingSearch = false;
   String? _searchError;
+  bool _enrichingRecentAvatars = false;
 
   @override
   void initState() {
@@ -38,12 +42,52 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _loadRecent() async {
-    final list = await RecentSearchesStorage.load();
+    final uid = await _api.getCurrentUserId();
+    final snap = await RecentSearchesStorage.loadSnapshot(uid);
     if (!mounted) return;
     setState(() {
-      _recent = list;
+      _recent = snap;
       _loadingRecent = false;
     });
+    unawaited(_enrichRecentProfileAvatars(uid));
+  }
+
+  /// Fills missing profile photos for stored recents (legacy rows or older saves).
+  Future<void> _enrichRecentProfileAvatars(int? uid) async {
+    if (_enrichingRecentAvatars) return;
+    final needAvatar = _recent.users
+        .where((u) => (u.avatarUrl == null || u.avatarUrl!.trim().isEmpty))
+        .toList();
+    if (needAvatar.isEmpty) return;
+    _enrichingRecentAvatars = true;
+    var changed = false;
+    try {
+      for (final u in needAvatar) {
+        if (!mounted) break;
+        try {
+          final json = await _api.fetchPublicUser(u.id);
+          final url = _parseAvatarUrlFromProfileJson(json);
+          if (url == null) continue;
+          await RecentSearchesStorage.updateUserAvatar(uid, u.id, url);
+          changed = true;
+        } catch (_) {}
+      }
+      if (changed && mounted) {
+        final snap = await RecentSearchesStorage.loadSnapshot(uid);
+        if (!mounted) return;
+        setState(() => _recent = snap);
+      }
+    } finally {
+      _enrichingRecentAvatars = false;
+    }
+  }
+
+  static String? _parseAvatarUrlFromProfileJson(Map<String, dynamic> json) {
+    final user = json['user'];
+    if (user is! Map) return null;
+    final raw = user['avatarUrl'] ?? user['avatar_url'];
+    if (raw is String && raw.trim().isNotEmpty) return raw.trim();
+    return null;
   }
 
   void _onQueryChanged(String value) {
@@ -74,6 +118,9 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {
         _results = raw.map(_SearchHit.fromJson).where((e) => e.id > 0).toList();
       });
+      final uid = await _api.getCurrentUserId();
+      await RecentSearchesStorage.addQuery(uid, q);
+      if (mounted) await _loadRecent();
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -89,18 +136,44 @@ class _SearchScreenState extends State<SearchScreen> {
     if (user.id <= 0) return;
     final hint = user.username.trim().isNotEmpty ? user.username.trim() : 'User';
     pushUserProfile(context, userId: user.id, username: hint);
-    RecentSearchesStorage.add(RecentSearchUser(id: user.id, username: hint)).then((_) {
-      if (mounted) _loadRecent();
-    });
+    () async {
+      final uid = await _api.getCurrentUserId();
+      var avatar = user.avatarUrl?.trim();
+      if (avatar == null || avatar.isEmpty) {
+        try {
+          final json = await _api.fetchPublicUser(user.id);
+          avatar = _parseAvatarUrlFromProfileJson(json);
+        } catch (_) {}
+      }
+      await RecentSearchesStorage.addUser(
+        uid,
+        RecentSearchUser(id: user.id, username: hint, avatarUrl: avatar),
+      );
+      if (mounted) await _loadRecent();
+    }();
   }
 
-  Future<void> _removeRecent(int id) async {
-    await RecentSearchesStorage.remove(id);
+  Future<void> _removeRecentTag(String tag) async {
+    final uid = await _api.getCurrentUserId();
+    await RecentSearchesStorage.removeTag(uid, tag);
+    await _loadRecent();
+  }
+
+  Future<void> _removeRecentQuery(String query) async {
+    final uid = await _api.getCurrentUserId();
+    await RecentSearchesStorage.removeQuery(uid, query);
+    await _loadRecent();
+  }
+
+  Future<void> _removeRecentUser(int profileUserId) async {
+    final uid = await _api.getCurrentUserId();
+    await RecentSearchesStorage.removeUser(uid, profileUserId);
     await _loadRecent();
   }
 
   Future<void> _clearRecent() async {
-    await RecentSearchesStorage.clear();
+    final uid = await _api.getCurrentUserId();
+    await RecentSearchesStorage.clear(uid);
     await _loadRecent();
   }
 
@@ -109,17 +182,17 @@ class _SearchScreenState extends State<SearchScreen> {
     final showRecent = _controller.text.trim().isEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F6),
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEDEDF1),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: const BackButton(color: BcColors.ink),
         title: TextField(
           controller: _controller,
           autofocus: true,
+          style: Theme.of(context).textTheme.titleMedium,
           decoration: const InputDecoration(
             hintText: 'Search',
             border: InputBorder.none,
@@ -130,11 +203,21 @@ class _SearchScreenState extends State<SearchScreen> {
             _onQueryChanged(v);
           },
         ),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: showRecent
           ? _buildRecentBody()
           : _buildResultsBody(),
     );
+  }
+
+  void _applyRecentQuery(String query) {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    _controller.text = q;
+    _controller.selection = TextSelection.collapsed(offset: q.length);
+    setState(() {});
+    _onQueryChanged(q);
   }
 
   Widget _buildRecentBody() {
@@ -152,11 +235,20 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       );
     }
+    final tags = _recent.tags;
+    final queries = _recent.queries;
+    final users = _recent.users;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(
+            kScreenHorizontalPadding,
+            12,
+            kScreenHorizontalPadding,
+            8,
+          ),
           child: Row(
             children: [
               Text(
@@ -175,43 +267,144 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
         Expanded(
-          child: ListView.separated(
-            itemCount: _recent.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final u = _recent[index];
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _openUser(u),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          backgroundColor: Color(0xFFD8D8DE),
-                          child: Icon(Icons.person, color: Color(0xFF6D6D75)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            u.username,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 20),
-                          onPressed: () => _removeRecent(u.id),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: _recentListRows(
+              context,
+              tags: tags,
+              queries: queries,
+              users: users,
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  static const _rowPadding = EdgeInsets.symmetric(
+    horizontal: kScreenHorizontalPadding,
+    vertical: 12,
+  );
+
+  /// Softer than the default theme divider (both Recents and search results).
+  static const Color _listDividerColor = Color(0xFFEDEDF1);
+
+  List<Widget> _recentListRows(
+    BuildContext context, {
+    required List<String> tags,
+    required List<String> queries,
+    required List<RecentSearchUser> users,
+  }) {
+    final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: const Color(0xFF6C6C74),
+          fontWeight: FontWeight.w700,
+        );
+    final out = <Widget>[];
+
+    void divider() => out.add(
+          const Divider(height: 1, thickness: 1, color: _listDividerColor),
+        );
+
+    Widget sectionLabel(String text) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          kScreenHorizontalPadding,
+          8,
+          kScreenHorizontalPadding,
+          4,
+        ),
+        child: Text(text, style: labelStyle),
+      );
+    }
+
+    if (tags.isNotEmpty) {
+      out.add(sectionLabel('Tags'));
+      for (var i = 0; i < tags.length; i++) {
+        if (i > 0) divider();
+        final t = tags[i];
+        out.add(
+          _recentRow(
+            leading: const Icon(Icons.tag, color: Color(0xFF6D6D75)),
+            title: '#$t',
+            onTap: () => _openTag(t),
+            onRemove: () => _removeRecentTag(t),
+          ),
+        );
+      }
+      if (queries.isNotEmpty || users.isNotEmpty) divider();
+    }
+    if (queries.isNotEmpty) {
+      out.add(sectionLabel('Searches'));
+      for (var i = 0; i < queries.length; i++) {
+        if (i > 0) divider();
+        final q = queries[i];
+        out.add(
+          _recentRow(
+            leading: const Icon(Icons.search, color: Color(0xFF6D6D75)),
+            title: q,
+            onTap: () => _applyRecentQuery(q),
+            onRemove: () => _removeRecentQuery(q),
+          ),
+        );
+      }
+      if (users.isNotEmpty) divider();
+    }
+    if (users.isNotEmpty) {
+      out.add(sectionLabel('Profiles'));
+      for (var i = 0; i < users.length; i++) {
+        if (i > 0) divider();
+        final u = users[i];
+        out.add(
+          _recentRow(
+            leading: ProfileAvatar(
+              imageUrl: u.avatarUrl,
+              radius: 22,
+            ),
+            title: u.username,
+            onTap: () => _openUser(u),
+            onRemove: () => _removeRecentUser(u.id),
+          ),
+        );
+      }
+    }
+    return out;
+  }
+
+  Widget _recentRow({
+    required Widget leading,
+    required String title,
+    required VoidCallback onTap,
+    required VoidCallback onRemove,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: _rowPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              leading,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              InkWell(
+                onTap: onRemove,
+                customBorder: const CircleBorder(),
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(Icons.close, size: 20, color: Color(0xFF6D6D75)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -233,7 +426,8 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     return ListView.separated(
       itemCount: _results.length + (tag.isNotEmpty ? 1 : 0),
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, thickness: 1, color: _listDividerColor),
       itemBuilder: (context, index) {
         if (tag.isNotEmpty && index == 0) {
           return Material(
@@ -241,7 +435,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: InkWell(
               onTap: () => _openTag(tag),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: _rowPadding,
                 child: Row(
                   children: [
                     const Icon(Icons.tag, color: Color(0xFF6D6D75)),
@@ -260,22 +454,25 @@ class _SearchScreenState extends State<SearchScreen> {
         }
         final offset = tag.isNotEmpty ? 1 : 0;
         final u = _results[index - offset];
+        final name = u.username.isNotEmpty ? u.username : 'User';
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => _openUser(RecentSearchUser(id: u.id, username: u.username)),
+            onTap: () => _openUser(
+              RecentSearchUser(id: u.id, username: name, avatarUrl: u.avatarUrl),
+            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: _rowPadding,
               child: Row(
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: Color(0xFFD8D8DE),
-                    child: Icon(Icons.person, color: Color(0xFF6D6D75)),
+                  ProfileAvatar(
+                    imageUrl: u.avatarUrl,
+                    radius: 22,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      u.username.isNotEmpty ? u.username : 'User',
+                      name,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -294,10 +491,15 @@ class _SearchScreenState extends State<SearchScreen> {
     return q.replaceFirst(RegExp(r'^#'), '');
   }
 
-  void _openTag(String tag) {
+  Future<void> _openTag(String tag) async {
     final q = tag.trim().replaceFirst(RegExp(r'^#'), '');
     if (q.isEmpty) return;
-    Navigator.of(context).push(
+    final uid = await _api.getCurrentUserId();
+    await RecentSearchesStorage.addTag(uid, q);
+    if (!mounted) return;
+    await _loadRecent();
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => TaggedPostsScreen(initialTag: q),
       ),
@@ -308,8 +510,9 @@ class _SearchScreenState extends State<SearchScreen> {
 class _SearchHit {
   final int id;
   final String username;
+  final String? avatarUrl;
 
-  _SearchHit({required this.id, required this.username});
+  _SearchHit({required this.id, required this.username, this.avatarUrl});
 
   factory _SearchHit.fromJson(Map<String, dynamic> json) {
     var id = 0;
@@ -321,9 +524,15 @@ class _SearchHit {
     } else if (rawId is String) {
       id = int.tryParse(rawId) ?? 0;
     }
+    final rawAvatar = json['avatarUrl'] ?? json['avatar_url'];
+    String? avatar;
+    if (rawAvatar is String) {
+      avatar = rawAvatar.trim().isEmpty ? null : rawAvatar.trim();
+    }
     return _SearchHit(
       id: id,
       username: (json['username'] as String?)?.trim() ?? '',
+      avatarUrl: avatar,
     );
   }
 }

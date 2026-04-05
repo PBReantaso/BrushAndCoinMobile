@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../models/app_models.dart';
+import '../../theme/app_colors.dart';
 
 /// Brand red for outgoing bubbles (matches Communication / commission chat).
-const Color kChatOutgoingRed = Color(0xFFFF4A4A);
+const Color kChatOutgoingRed = BcColors.brandRed;
 const Color kChatIncomingGrey = Color(0xFFEDEDED);
 
 (String artist, String patron)? parseCommissionAccepted(String content) {
@@ -100,7 +101,7 @@ class AcceptNoticeBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFE8E8EA)),
+          border: Border.all(color: const Color(0xFFE6E6EA)),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
@@ -151,7 +152,7 @@ class WorkSubmittedNotice extends StatelessWidget {
           height: 1.35,
         );
     final linkStyle = baseStyle?.copyWith(
-      color: const Color(0xFFD32F2F),
+      color: kChatOutgoingRed,
       fontWeight: FontWeight.w800,
       decoration: TextDecoration.underline,
     );
@@ -160,7 +161,9 @@ class WorkSubmittedNotice extends StatelessWidget {
       child: Center(
         child: Column(
           children: [
-            Row(children: [Expanded(child: Divider(color: Colors.grey.shade300))]),
+            Row(children: [
+              Expanded(child: Divider(color: const Color(0xFFE6E6EA))),
+            ]),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
               child: Wrap(
@@ -200,7 +203,8 @@ class CompletionSystemNotice extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0F0F2),
+            color: const Color(0xFFF3F3F6),
+            border: Border.all(color: const Color(0xFFE6E6EA)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(

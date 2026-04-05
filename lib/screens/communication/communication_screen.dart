@@ -36,9 +36,9 @@ class _CommunicationScreenState extends State<CommunicationScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                16,
+                kScreenHorizontalPadding,
                 8 + kContentBelowAppBarPadding,
-                16,
+                kScreenHorizontalPadding,
                 0,
               ),
               child: Row(

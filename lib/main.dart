@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 import 'navigation/app_route_observer.dart';
+import 'navigation/main_shell_scope.dart';
 import 'theme/app_typography.dart';
 import 'theme/no_animations.dart';
 import 'screens/auth/login_screen.dart';
@@ -187,98 +188,106 @@ class _MainShellState extends State<MainShell> {
     final isHome = _currentIndex == 0;
     final isCalendar = _currentIndex == 1;
     final inbox = InboxBadgeScope.of(context);
-    return Scaffold(
-      body: Stack(
-        children: [
-          _pages[_currentIndex],
-          if (isHome || isCalendar)
-            Positioned(
-              right: 18,
-              // Slightly above the bottom nav bar.
-              bottom: 25,
-              child: SizedBox(
-                width: 50,
-                height: 50,
-                child: FloatingActionButton(
-                  onPressed: () async {
-                    if (_currentIndex == 0) {
-                      final created = await showCreatePostBottomSheet(context);
-                      if (created == true && mounted) {
-                        setState(() {
-                          _homeRefreshTick++;
-                        });
+    return MainShellScope(
+      selectTab: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
+        inbox.refresh();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            _pages[_currentIndex],
+            if (isHome || isCalendar)
+              Positioned(
+                right: 18,
+                // Slightly above the bottom nav bar.
+                bottom: 25,
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: FloatingActionButton(
+                    onPressed: () async {
+                      if (_currentIndex == 0) {
+                        final created = await showCreatePostBottomSheet(context);
+                        if (created == true && mounted) {
+                          setState(() {
+                            _homeRefreshTick++;
+                          });
+                        }
+                        return;
                       }
-                      return;
-                    }
-                    if (_currentIndex == 1) {
-                      final created = await showCreateEventBottomSheet(context);
-                      if (created == true && mounted) {
-                        setState(() {
-                          _calendarRefreshTick++;
-                        });
+                      if (_currentIndex == 1) {
+                        final created = await showCreateEventBottomSheet(context);
+                        if (created == true && mounted) {
+                          setState(() {
+                            _calendarRefreshTick++;
+                          });
+                        }
                       }
-                    }
-                  },
-                  backgroundColor: const Color(0xFFFF4A4A),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: const CircleBorder(),
-                  child: const Icon(Icons.add, size: 24),
+                    },
+                    backgroundColor: const Color(0xFFFF4A4A),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: const CircleBorder(),
+                    child: const Icon(Icons.add, size: 24),
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-      bottomNavigationBar: ListenableBuilder(
-        listenable: inbox,
-        builder: (context, _) {
-          final msgCount = inbox.messageUnread;
-          return NavigationBar(
-            animationDuration: Duration.zero,
-            backgroundColor: const Color(0xFFFFFFFF),
-            indicatorColor: Colors.transparent,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-              inbox.refresh();
-            },
-            destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.map_outlined),
-                selectedIcon: Icon(Icons.map),
-                label: 'Calendar & Map',
-              ),
-              NavigationDestination(
-                icon: _navBadgeIcon(
-                  count: msgCount,
-                  outlined: Icons.chat_bubble_outline,
-                  filled: Icons.chat_bubble,
-                  selected: false,
+          ],
+        ),
+        bottomNavigationBar: ListenableBuilder(
+          listenable: inbox,
+          builder: (context, _) {
+            final msgCount = inbox.messageUnread;
+            return NavigationBar(
+              animationDuration: Duration.zero,
+              backgroundColor: const Color(0xFFFFFFFF),
+              indicatorColor: Colors.transparent,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+                inbox.refresh();
+              },
+              destinations: [
+                const NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Home',
                 ),
-                selectedIcon: _navBadgeIcon(
-                  count: msgCount,
-                  outlined: Icons.chat_bubble_outline,
-                  filled: Icons.chat_bubble,
-                  selected: true,
+                const NavigationDestination(
+                  icon: Icon(Icons.map_outlined),
+                  selectedIcon: Icon(Icons.map),
+                  label: 'Calendar & Map',
                 ),
-                label: 'Messages',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
-          );
-        },
+                NavigationDestination(
+                  icon: _navBadgeIcon(
+                    count: msgCount,
+                    outlined: Icons.chat_bubble_outline,
+                    filled: Icons.chat_bubble,
+                    selected: false,
+                  ),
+                  selectedIcon: _navBadgeIcon(
+                    count: msgCount,
+                    outlined: Icons.chat_bubble_outline,
+                    filled: Icons.chat_bubble,
+                    selected: true,
+                  ),
+                  label: 'Messages',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Profile',
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/api_client.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/content_spacing.dart';
 
 /// Opens create-post as a modal [showModalBottomSheet] (~full height, no sheet animation).
 Future<bool?> showCreatePostBottomSheet(BuildContext context) {
@@ -46,6 +48,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _tagsController = TextEditingController();
 
   String _category = '';
+  /// `true` = normal feed/gallery post; `false` = profile Merchandise tab only.
+  bool _postToGallery = true;
   bool _submitting = false;
   bool _pickingImage = false;
   File? _imageFile;
@@ -76,13 +80,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         widget.asBottomSheet ? MediaQuery.paddingOf(context).bottom : 0.0;
 
     final listView = ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        12,
+        kScreenHorizontalPadding,
+        16,
+      ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: _formScrollChildren(),
     );
 
     final bottomButton = Padding(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 18 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        kScreenHorizontalPadding,
+        8,
+        kScreenHorizontalPadding,
+        18 + bottomInset,
+      ),
       child: SizedBox(
         width: double.infinity,
         height: 48,
@@ -101,7 +115,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Create Artwork'),
+              : Text(_postToGallery ? 'Create Artwork' : 'Add to merchandise'),
         ),
       ),
     );
@@ -164,16 +178,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: BcColors.pageBackground,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1F1F24)),
+          icon: const Icon(Icons.arrow_back, color: BcColors.ink),
         ),
-        title: Text('Create Post', style: titleStyle),
+        title: Text('Create Post', style: bcPushedScreenTitleStyle(context)),
+        bottom: const BcAppBarBottomLine(),
       ),
       body: formBody,
     );
@@ -206,7 +222,73 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _labelBlock('Upload Artwork', _labelAccent),
+          _labelBlock('Show in', _labelAccent),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: _postToGallery
+                        ? const Color(0xFFFFE8E8)
+                        : Colors.transparent,
+                    foregroundColor: const Color(0xFF1F1F24),
+                    side: BorderSide(
+                      color: _postToGallery
+                          ? const Color(0xFFFF4A4A)
+                          : const Color(0xFFE5E5E5),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => setState(() => _postToGallery = true),
+                  child: const Text('Gallery'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: !_postToGallery
+                        ? const Color(0xFFFFE8E8)
+                        : Colors.transparent,
+                    foregroundColor: const Color(0xFF1F1F24),
+                    side: BorderSide(
+                      color: !_postToGallery
+                          ? const Color(0xFFFF4A4A)
+                          : const Color(0xFFE5E5E5),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => setState(() => _postToGallery = false),
+                  child: const Text('Merchandise'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _postToGallery
+                ? 'Appears in your feed and Gallery tab.'
+                : 'Appears only under your profile Merchandise tab.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _labelMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _labelBlock(
+            _postToGallery ? 'Upload Artwork' : 'Product image',
+            _labelAccent,
+          ),
           const SizedBox(height: 6),
           Center(child: _uploadBox()),
         ],
@@ -233,63 +315,69 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             controller: _descriptionController,
             minLines: 5,
             maxLines: 6,
-            decoration: _filledDecoration('Tell us about your artwork...'),
+            decoration: _filledDecoration(
+              _postToGallery
+                  ? 'Tell us about your artwork...'
+                  : 'Describe this product (optional)...',
+            ),
           ),
         ],
       ),
-      const SizedBox(height: 12),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _labelBlock('Category', _labelAccent),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: _fieldFill,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _category.isEmpty ? null : _category,
-                hint: Text(
-                  'Select a category',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: _labelMuted,
-                      ),
+      if (_postToGallery) ...[
+        const SizedBox(height: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _labelBlock('Category', _labelAccent),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: _fieldFill,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _category.isEmpty ? null : _category,
+                  hint: Text(
+                    'Select a category',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _labelMuted,
+                        ),
+                  ),
+                  isExpanded: true,
+                  items: _categories
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _category = v ?? ''),
                 ),
-                isExpanded: true,
-                items: _categories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) => setState(() => _category = v ?? ''),
               ),
             ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 12),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _labelBlock('Tags', _labelAccent),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _tagsController,
-            decoration: _filledDecoration(
-              'Enter tags separated by commas (e.g., portrait, digital)',
+          ],
+        ),
+        const SizedBox(height: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _labelBlock('Tags', _labelAccent),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _tagsController,
+              decoration: _filledDecoration(
+                'Enter tags separated by commas (e.g., portrait, digital)',
+              ),
             ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 6),
-      Text(
-        'Tags help others discover your artwork',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: _labelMuted,
-              fontWeight: FontWeight.w500,
-            ),
-      ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Tags help others discover your artwork',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: _labelMuted,
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+      ],
     ];
   }
 
@@ -432,22 +520,38 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           .showSnackBar(const SnackBar(content: Text('Title is required.')));
       return;
     }
+    if (!_postToGallery && _imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add a product image for merchandise.'),
+        ),
+      );
+      return;
+    }
     setState(() => _submitting = true);
     try {
-      final tags = _tagsController.text
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-      await _apiClient.createPost(
-        title: title,
-        description: _descriptionController.text.trim(),
-        category: _category,
-        price: 0,
-        isCommissionAvailable: false,
-        tags: tags,
-        imageUrl: _imageFile?.path,
-      );
+      if (!_postToGallery) {
+        await _apiClient.createMerchandise(
+          title: title,
+          description: _descriptionController.text.trim(),
+          imageUrl: _imageFile?.path,
+        );
+      } else {
+        final tags = _tagsController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        await _apiClient.createPost(
+          title: title,
+          description: _descriptionController.text.trim(),
+          category: _category,
+          price: 0,
+          isCommissionAvailable: false,
+          tags: tags,
+          imageUrl: _imageFile?.path,
+        );
+      }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
