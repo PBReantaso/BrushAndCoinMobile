@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
 import 'commission_chat_screen.dart';
+import 'commission_payment_confirmation_screen.dart';
 import 'commission_work_view_screen.dart';
 
 class CommissionDetailScreen extends StatefulWidget {
@@ -24,8 +26,75 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   final _apiClient = ApiClient();
   bool _isProcessing = false;
   bool _isSubmittingArtwork = false;
+  bool _patronCompleting = false;
   List<XFile> _submittedArtworks = [];
   String? _currentUsername;
+  /// After payment or status updates, merged with [CommissionDetailScreen.commission].
+  Project? _commissionRefresh;
+
+  Project get _c => _commissionRefresh ?? widget.commission;
+
+  Future<void> _reloadCommission() async {
+    final id = _c.id;
+    if (id == null) return;
+    try {
+      final json = await _apiClient.fetchCommission(id);
+      if (!mounted) return;
+      setState(() => _commissionRefresh = Project.fromJson(json));
+    } catch (_) {
+      // Keep last known commission.
+    }
+  }
+
+  Future<void> _patronCompleteAndReleaseEscrow() async {
+    if (!_isCommissioner || _c.id == null) return;
+    if (_patronCompleting) return;
+    setState(() => _patronCompleting = true);
+    try {
+      await _apiClient.updateCommissionStatus(_c.id!, 'completed');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Commission completed. Escrow is released to the artist.',
+          ),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      final msg = e is ApiException ? e.message : 'Could not complete commission.';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } finally {
+      if (mounted) setState(() => _patronCompleting = false);
+    }
+  }
+
+  Future<void> _openPatronPayment() async {
+    final id = _c.id;
+    final aid = _c.artistId;
+    if (id == null || aid == null) return;
+    final uname = (_c.artistUsername ?? '').trim();
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CommissionPaymentConfirmationScreen(
+          artistUserId: aid,
+          artistUsername: uname.isNotEmpty ? uname : 'Artist',
+          commissionId: id,
+          commissionTitle: _c.title,
+          baseBudget: _c.budget,
+          isUrgent: _c.isUrgent,
+          paymentMethod:
+              paymentMethodTypeFromStoredName(_c.preferredPaymentMethod),
+          urgencyFee: _urgencyFee,
+          platformFee: _platformFee,
+          totalAmount: _totalAmount,
+        ),
+      ),
+    );
+    await _reloadCommission();
+  }
 
   @override
   void initState() {
@@ -46,26 +115,26 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
 
   bool get _isCommissioner {
     if (_currentUsername == null) return false;
-    return widget.commission.clientName == _currentUsername;
+    return _c.clientName == _currentUsername;
   }
 
   double get _urgencyFee =>
-      widget.commission.isUrgent ? widget.commission.budget * 0.20 : 0;
-  double get _platformFee => widget.commission.budget * 0.05;
+      _c.isUrgent ? _c.budget * 0.20 : 0;
+  double get _platformFee => _c.budget * 0.05;
   double get _totalAmount =>
-      widget.commission.budget + _urgencyFee + _platformFee;
+      _c.budget + _urgencyFee + _platformFee;
 
   Future<void> _accept() async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     try {
       await _apiClient.updateCommissionStatus(
-        widget.commission.id ?? 0,
+        _c.id ?? 0,
         'accepted',
       );
       if (!mounted) return;
-      final cid = widget.commission.id;
-      final patronId = widget.commission.patronId;
+      final cid = _c.id;
+      final patronId = _c.patronId;
         if (cid != null && patronId != null) {
           final convJson =
               await _apiClient.startConversation(patronId, commissionId: cid);
@@ -102,7 +171,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
     setState(() => _isProcessing = true);
     try {
       await _apiClient.updateCommissionStatus(
-        widget.commission.id ?? 0,
+        _c.id ?? 0,
         'rejected',
       );
       if (!mounted) return;
@@ -122,12 +191,34 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
 
   Future<void> _pickSubmissionImage() async {
     if (_submittedArtworks.length >= 5) return;
+    final choice = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
     final picker = ImagePicker();
     final picked = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: choice,
       imageQuality: 80,
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         _submittedArtworks.add(picked);
       });
@@ -141,8 +232,12 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   }
 
   Future<void> _submitArtwork() async {
-    if (_isSubmittingArtwork || widget.commission.id == null) return;
-    if (widget.commission.status != ProjectStatus.accepted) return;
+    if (_isSubmittingArtwork || _c.id == null) return;
+    final revisionAfterFunded = _c.status == ProjectStatus.accepted &&
+        _c.escrowStatus == EscrowStatus.funded;
+    final firstWorkAfterPayment = _c.status == ProjectStatus.inProgress &&
+        _c.submissionRound == 0;
+    if (!revisionAfterFunded && !firstWorkAfterPayment) return;
     if (_submittedArtworks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -153,9 +248,18 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
 
     setState(() => _isSubmittingArtwork = true);
     try {
+      final parts = <Map<String, String>>[];
+      for (final f in _submittedArtworks) {
+        final bytes = await f.readAsBytes();
+        parts.add({
+          'mimeType': f.mimeType ?? 'image/jpeg',
+          'dataBase64': base64Encode(bytes),
+        });
+      }
       await _apiClient.updateCommissionStatus(
-        widget.commission.id!,
+        _c.id!,
         'inProgress',
+        submissionImages: parts,
       );
 
       if (!mounted) return;
@@ -173,9 +277,9 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   }
 
   Future<void> _openCommissionChat() async {
-    final cid = widget.commission.id;
-    final patronId = widget.commission.patronId;
-    final artistId = widget.commission.artistId;
+    final cid = _c.id;
+    final patronId = _c.patronId;
+    final artistId = _c.artistId;
     if (cid == null || patronId == null || artistId == null) return;
     final other = _isCommissioner ? artistId : patronId;
     try {
@@ -206,15 +310,15 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   }
 
   Future<void> _openCommissionWorkView() async {
-    final key = _workStageKeyFromRound(widget.commission.submissionRound);
+    final key = _workStageKeyFromRound(_c.submissionRound);
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => CommissionWorkViewScreen(
-          commission: widget.commission,
+          commission: _c,
           workStageKey: key,
           patronReviewMode: _isCommissioner &&
-              widget.commission.status == ProjectStatus.inProgress,
+              _c.status == ProjectStatus.inProgress,
         ),
       ),
     );
@@ -242,25 +346,34 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDetailRow('Title', widget.commission.title),
+                  _buildDetailRow('Title', _c.title),
                   const SizedBox(height: 12),
-                  _buildDetailRow('Description', widget.commission.description),
+                  _buildDetailRow('Description', _c.description),
                   const SizedBox(height: 12),
                   _buildDetailRow('Budget',
-                      '₱${widget.commission.budget.toStringAsFixed(2)}',
+                      '₱${_c.budget.toStringAsFixed(2)}',
                       colored: true),
-                  const SizedBox(height: 12),
-                  if (widget.commission.deadline != null)
+                  if (_c.preferredPaymentMethod != null &&
+                      _c.preferredPaymentMethod!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
                     _buildDetailRow(
-                        'Preferred Deadline', widget.commission.deadline ?? ''),
-                  if (widget.commission.deadline != null)
+                      'Preferred payment',
+                      _paymentMethodDisplayLabel(
+                          _c.preferredPaymentMethod!),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  if (_c.deadline != null)
+                    _buildDetailRow(
+                        'Preferred Deadline', _c.deadline ?? ''),
+                  if (_c.deadline != null)
                     const SizedBox(height: 12),
-                  if (widget.commission.specialRequirements.isNotEmpty)
+                  if (_c.specialRequirements.isNotEmpty)
                     _buildDetailRow('Special Requirements',
-                        widget.commission.specialRequirements),
-                  if (widget.commission.specialRequirements.isNotEmpty)
+                        _c.specialRequirements),
+                  if (_c.specialRequirements.isNotEmpty)
                     const SizedBox(height: 12),
-                  if (widget.commission.referenceImages.isNotEmpty) ...[
+                  if (_c.referenceImages.isNotEmpty) ...[
                     const Text('Reference Images',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
@@ -279,7 +392,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'This is an ${widget.commission.isUrgent ? 'urgent' : 'normal'} commission',
+                            'This is an ${_c.isUrgent ? 'urgent' : 'normal'} commission',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
@@ -300,7 +413,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         _buildPricingRow(
-                            'Base budget', widget.commission.budget),
+                            'Base budget', _c.budget),
                         _buildPricingRow('Urgency Fee (20%)', _urgencyFee),
                         _buildPricingRow('Platform Fee (5%)', _platformFee),
                         const Divider(),
@@ -309,11 +422,19 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                       ],
                     ),
                   ),
+                  if (_c.escrowSimulation != null) ...[
+                    const SizedBox(height: 12),
+                    _buildSimulatedEscrowCard(),
+                  ] else if (_c.escrowStatus !=
+                      EscrowStatus.none) ...[
+                    const SizedBox(height: 12),
+                    _buildEscrowStatusBanner(),
+                  ],
                   const SizedBox(height: 16),
                   if (_isCommissioner) ...[
                     _buildCommissionerActionSection(),
                   ] else ...[
-                    if (widget.commission.status == ProjectStatus.pending) ...[
+                    if (_c.status == ProjectStatus.pending) ...[
                       Row(
                         children: [
                           Expanded(
@@ -350,59 +471,112 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                           ),
                         ],
                       ),
-                    ] else if (widget.commission.status == ProjectStatus.accepted) ...[
-                      Text(
-                        'Artwork Submission',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                    ] else if (_c.status == ProjectStatus.accepted) ...[
+                      if (_c.escrowStatus == EscrowStatus.none)
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFFA000)),
+                          ),
+                          child: const Text(
+                            'Waiting for the patron to complete payment. You can submit work once escrow is funded.',
+                            style: TextStyle(
+                              color: Color(0xFFE65100),
+                              height: 1.35,
                             ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildArtworkUploader(),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed:
-                            _isSubmittingArtwork ? null : () => _submitArtwork(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD32F2F),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: _isSubmittingArtwork
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Submit first work',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      else ...[
+                        Text(
+                          'Artwork Submission',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
                               ),
-                      ),
-                    ] else if (widget.commission.status ==
+                        ),
+                        const SizedBox(height: 12),
+                        _buildArtworkUploader(),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _isSubmittingArtwork
+                              ? null
+                              : () => _submitArtwork(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD32F2F),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: _isSubmittingArtwork
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit revised work',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                        ),
+                      ],
+                    ] else if (_c.status ==
                         ProjectStatus.inProgress) ...[
-                      Text(
-                        'Work submitted',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Status stays in progress until the patron accepts the final work. Use commission chat to coordinate.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: const Color(0xFF6E6E6E),
-                            ),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: _openCommissionChat,
-                        icon: const Icon(Icons.chat_bubble_outline),
-                        label: const Text('Open commission chat'),
-                      ),
-                    ] else if (widget.commission.status ==
+                      if (_c.submissionRound == 0) ...[
+                        Text(
+                          'Artwork Submission',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildArtworkUploader(),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _isSubmittingArtwork
+                              ? null
+                              : () => _submitArtwork(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD32F2F),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: _isSubmittingArtwork
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit first work',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'Work submitted',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Status stays in progress until the patron accepts the final work. Use commission chat to coordinate.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFF6E6E6E),
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _openCommissionChat,
+                          icon: const Icon(Icons.chat_bubble_outline),
+                          label: const Text('Open commission chat'),
+                        ),
+                      ],
+                    ] else if (_c.status ==
                         ProjectStatus.completed) ...[
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -418,7 +592,7 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                           ),
                         ),
                       ),
-                    ] else if (widget.commission.status ==
+                    ] else if (_c.status ==
                         ProjectStatus.rejected) ...[
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -441,6 +615,263 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _formatEscrowMoney(EscrowSimulation sim, double amount) {
+    final sym = sim.currency == 'PHP' ? '₱' : '${sim.currency} ';
+    return '$sym${amount.toStringAsFixed(2)}';
+  }
+
+  Widget _buildSimulatedEscrowCard() {
+    final sim = _c.escrowSimulation!;
+    late Color bg;
+    late Color fg;
+    late String phaseLabel;
+    switch (sim.phase) {
+      case 'held':
+        bg = const Color(0xFFE8F5E9);
+        fg = const Color(0xFF1B5E20);
+        phaseLabel = 'Held for artist';
+        break;
+      case 'released_to_artist':
+        bg = const Color(0xFFE3F2FD);
+        fg = const Color(0xFF0D47A1);
+        phaseLabel = 'Released to artist';
+        break;
+      case 'refunded_to_patron':
+        bg = const Color(0xFFFFF3E0);
+        fg = const Color(0xFFE65100);
+        phaseLabel = 'Refunded to patron';
+        break;
+      case 'awaiting_funding':
+      default:
+        bg = const Color(0xFFF5F5F5);
+        fg = const Color(0xFF424242);
+        phaseLabel = 'Awaiting payment';
+        break;
+    }
+
+    final pm = _c.paymentMethod?.trim() ?? '';
+    final pmLine = pm.isEmpty ? null : 'Recorded method: $pm';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: fg.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.savings_outlined, color: fg, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Simulated escrow',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: fg,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: fg.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  phaseLabel,
+                  style: TextStyle(
+                    color: fg,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (pmLine != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              pmLine,
+              style: TextStyle(
+                color: fg.withValues(alpha: 0.85),
+                fontSize: 12,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          _simEscrowAmountRow(
+            'Commission total',
+            _formatEscrowMoney(sim, sim.commissionTotal),
+            fg,
+          ),
+          if (sim.heldInEscrow > 0)
+            _simEscrowAmountRow(
+              'Held in app escrow',
+              _formatEscrowMoney(sim, sim.heldInEscrow),
+              fg,
+            ),
+          if (sim.releasedToArtist > 0)
+            _simEscrowAmountRow(
+              'Paid out to artist (simulated)',
+              _formatEscrowMoney(sim, sim.releasedToArtist),
+              fg,
+            ),
+          if (sim.refundedToPatron > 0)
+            _simEscrowAmountRow(
+              'Returned to patron (simulated)',
+              _formatEscrowMoney(sim, sim.refundedToPatron),
+              fg,
+            ),
+          if (sim.releaseGoal.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              sim.releaseGoal,
+              style: TextStyle(
+                color: fg.withValues(alpha: 0.9),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (sim.refundNote.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              sim.refundNote,
+              style: TextStyle(
+                color: fg.withValues(alpha: 0.85),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (sim.disclaimer.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              sim.disclaimer,
+              style: TextStyle(
+                color: fg.withValues(alpha: 0.65),
+                fontSize: 11,
+                height: 1.35,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _simEscrowAmountRow(String label, String value, Color fg) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: fg.withValues(alpha: 0.88),
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEscrowStatusBanner() {
+    final e = _c.escrowStatus;
+    if (e == EscrowStatus.none) return const SizedBox.shrink();
+    final pm = _c.paymentMethod?.trim() ?? '';
+    final pmSuffix = pm.isEmpty ? '' : ' · $pm';
+
+    late Color bg;
+    late Color fg;
+    late String title;
+    late String subtitle;
+
+    switch (e) {
+      case EscrowStatus.funded:
+        bg = const Color(0xFFE8F5E9);
+        fg = const Color(0xFF1B5E20);
+        title = 'Payment in escrow$pmSuffix';
+        subtitle =
+            'Funds are held until the commission is completed or rejected with a refund.';
+        break;
+      case EscrowStatus.released:
+        bg = const Color(0xFFE3F2FD);
+        fg = const Color(0xFF0D47A1);
+        title = 'Escrow released$pmSuffix';
+        subtitle =
+            'Payout to the artist is recorded in the app. Connect a payment provider for real transfers.';
+        break;
+      case EscrowStatus.refunded:
+        bg = const Color(0xFFFFF3E0);
+        fg = const Color(0xFFE65100);
+        title = 'Escrow refunded';
+        subtitle = 'Held funds were returned to the patron.';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: fg.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.account_balance_wallet_outlined, color: fg, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: fg,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: fg.withValues(alpha: 0.9),
+                    height: 1.3,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -473,11 +904,12 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   }
 
   Widget _buildCommissionerActionSection() {
-    final status = widget.commission.status;
+    final status = _c.status;
     String actionText;
     Color actionColor;
     String? buttonText;
     VoidCallback? onPressed;
+    var showPatronReleaseAfterReview = false;
 
     switch (status) {
       case ProjectStatus.pending:
@@ -485,17 +917,28 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
         actionColor = const Color(0xFFFFA000);
         break;
       case ProjectStatus.accepted:
-        actionText = 'Your commission has been accepted! The artist will start working soon.';
-        actionColor = const Color(0xFF1976D2);
-        buttonText = 'View Work';
-        onPressed = _openCommissionWorkView;
+        if (_c.escrowStatus == EscrowStatus.none) {
+          actionText =
+              'The artist accepted your request. Complete payment to fund escrow so they can start.';
+          actionColor = const Color(0xFF1976D2);
+          buttonText = 'Complete payment';
+          onPressed = _openPatronPayment;
+        } else {
+          actionText =
+              'Your commission has been accepted! The artist will start working soon.';
+          actionColor = const Color(0xFF1976D2);
+          buttonText = 'View Work';
+          onPressed = _openCommissionWorkView;
+        }
         break;
       case ProjectStatus.inProgress:
         actionText =
-            'Review the final work. When you accept, the commission completes and escrow releases payment to the artist.';
+            'Review the submitted artwork. Accepting completes the commission and releases escrow to the artist.';
         actionColor = const Color(0xFFFFA000);
-        buttonText = 'View Work';
+        buttonText = 'View artwork';
         onPressed = _openCommissionWorkView;
+        showPatronReleaseAfterReview =
+            _c.submissionImages.isNotEmpty || _c.submissionRound > 0;
         break;
       case ProjectStatus.completed:
         actionText = 'Your commission has been completed! Check out the final artwork.';
@@ -554,6 +997,33 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
                     color: Colors.white,
                   ),
                 ),
+              ),
+            ),
+          ],
+          if (showPatronReleaseAfterReview) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _patronCompleting ? null : _patronCompleteAndReleaseEscrow,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFD32F2F),
+                  side: const BorderSide(color: Color(0xFFD32F2F)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: _patronCompleting
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFD32F2F),
+                        ),
+                      )
+                    : const Text(
+                        'Accept work & release payment',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
           ],
@@ -671,10 +1141,10 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
       height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: widget.commission.referenceImages.length,
+        itemCount: _c.referenceImages.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          final imagePath = widget.commission.referenceImages[index];
+          final imagePath = _c.referenceImages[index];
           return Container(
             width: 100,
             decoration: BoxDecoration(
@@ -718,5 +1188,20 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
         ],
       ),
     );
+  }
+}
+
+String _paymentMethodDisplayLabel(String code) {
+  switch (code.toLowerCase()) {
+    case 'gcash':
+      return 'GCash';
+    case 'paymaya':
+      return 'PayMaya';
+    case 'paypal':
+      return 'PayPal';
+    case 'stripe':
+      return 'Stripe';
+    default:
+      return code;
   }
 }

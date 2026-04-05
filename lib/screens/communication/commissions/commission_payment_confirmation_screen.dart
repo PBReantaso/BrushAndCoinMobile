@@ -1,9 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/app_models.dart';
 import '../../../navigation/user_profile_navigation.dart';
 import '../../../services/api_client.dart';
 import 'commission_payment_success_screen.dart';
+
+/// Opens the provider's public site in the system browser.
+/// Production: replace with a checkout URL returned by your API (Stripe Checkout, PayMongo, etc.).
+Uri _paymentProviderEntryUri(PaymentMethodType method) {
+  switch (method) {
+    case PaymentMethodType.gcash:
+      return Uri.parse('https://www.gcash.com/');
+    case PaymentMethodType.paymaya:
+      return Uri.parse('https://www.paymaya.com/');
+    case PaymentMethodType.paypal:
+      return Uri.parse('https://www.paypal.com/');
+    case PaymentMethodType.stripe:
+      return Uri.parse('https://stripe.com/docs/payments');
+  }
+}
 
 class CommissionPaymentConfirmationScreen extends StatefulWidget {
   /// Artist being commissioned (for returning to their profile after pay / failure).
@@ -42,6 +58,9 @@ class _CommissionPaymentConfirmationScreenState
     extends State<CommissionPaymentConfirmationScreen> {
   final _apiClient = ApiClient();
   bool _isProcessing = false;
+  bool _openingBrowser = false;
+  /// After user taps "Pay now", we open the provider; they must confirm in-app before API.
+  bool _checkoutPageOpened = false;
 
   String get _paymentMethodLabel {
     switch (widget.paymentMethod) {
@@ -93,13 +112,47 @@ class _CommissionPaymentConfirmationScreenState
     );
   }
 
+  Future<void> _openPaymentProviderInBrowser() async {
+    if (_openingBrowser) return;
+    setState(() => _openingBrowser = true);
+    final uri = _paymentProviderEntryUri(widget.paymentMethod);
+    try {
+      var ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        ok = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the browser. Try again or use another device.'),
+          ),
+        );
+        return;
+      }
+      setState(() => _checkoutPageOpened = true);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open the payment page. Check your connection and try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _openingBrowser = false);
+    }
+  }
+
   Future<void> _processPayment() async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
 
     try {
       await _apiClient.updateCommissionStatus(
-          widget.commissionId, 'inProgress');
+        widget.commissionId,
+        'inProgress',
+        paymentMethod: widget.paymentMethod.name,
+      );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -131,64 +184,155 @@ class _CommissionPaymentConfirmationScreenState
         elevation: 1,
       ),
       backgroundColor: const Color(0xFFF2F2F4),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.isUrgent)
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.isUrgent)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF2F2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'This is an urgent commission (+20% fee)',
+                    style: TextStyle(
+                        color: Color(0xFFD32F2F), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              if (widget.isUrgent) const SizedBox(height: 18),
+              const Text('Pricing Summary',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              _priceRow('Base budget', widget.baseBudget),
+              _priceRow('Urgency Fee (20%)', widget.urgencyFee),
+              _priceRow('Platform Fee (5%)', widget.platformFee),
+              const Divider(thickness: 1.2),
+              _priceRow('Total Amount', widget.totalAmount,
+                  bold: true, highlighted: true),
+              const SizedBox(height: 20),
+              const Text('Payment Method',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(_paymentMethodLabel, style: t.titleMedium),
+              const SizedBox(height: 12),
               Container(
+                width: double.infinity,
                 padding:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF2F2),
+                  color: const Color(0xFFF0F4FF),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFC5CAE9)),
                 ),
-                child: const Text(
-                  'This is an urgent commission (+20% fee)',
-                  style: TextStyle(
-                      color: Color(0xFFD32F2F), fontWeight: FontWeight.bold),
+                child: Text(
+                  'Simulated escrow: after you confirm, Brush&Coin shows your total as held until the work is completed, '
+                  'then released to the artist. Real money movement requires a payment provider integration.',
+                  style: t.bodySmall?.copyWith(
+                    color: const Color(0xFF3949AB),
+                    height: 1.35,
+                  ),
                 ),
               ),
-            const SizedBox(height: 18),
-            const Text('Pricing Summary',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            _priceRow('Base budget', widget.baseBudget),
-            _priceRow('Urgency Fee (20%)', widget.urgencyFee),
-            _priceRow('Platform Fee (5%)', widget.platformFee),
-            const Divider(thickness: 1.2),
-            _priceRow('Total Amount', widget.totalAmount,
-                bold: true, highlighted: true),
-            const SizedBox(height: 20),
-            const Text('Payment Method',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(_paymentMethodLabel, style: t.titleMedium),
-            const Spacer(),
-            ElevatedButton(
-              onPressed: _isProcessing ? null : _processPayment,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD32F2F),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        _checkoutPageOpened
+                            ? 'We opened your ${_paymentMethodLabel} page in the browser. '
+                                'Complete payment there, then return here and tap the button below to record escrow in Brush&Coin.'
+                            : 'Tap Pay now to open ${_paymentMethodLabel} in your browser. '
+                                'After you pay, come back and confirm so we can update your commission.',
+                        style: t.bodySmall?.copyWith(
+                          color: const Color(0xFF5C5C66),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Note: a real app uses a checkout link from your server (e.g. Stripe Checkout, PayMongo). '
+                        'This build opens the provider’s public site as a stand-in.',
+                        style: t.bodySmall?.copyWith(
+                          color: const Color(0xFF8E8E99),
+                          height: 1.3,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: _isProcessing
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      'Pay now',
-                      style: t.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              if (!_checkoutPageOpened)
+                ElevatedButton(
+                  onPressed: (_isProcessing || _openingBrowser)
+                      ? null
+                      : _openPaymentProviderInBrowser,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD32F2F),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _openingBrowser
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Pay now',
+                          style: t.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                )
+              else ...[
+                OutlinedButton(
+                  onPressed: _openingBrowser ? null : _openPaymentProviderInBrowser,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: const Color(0xFFD32F2F),
+                    side: const BorderSide(color: Color(0xFFD32F2F)),
+                  ),
+                  child: const Text('Open payment page again'),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: _isProcessing ? null : _processPayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD32F2F),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'I’ve paid — confirm in Brush&Coin',
+                          textAlign: TextAlign.center,
+                          style: t.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

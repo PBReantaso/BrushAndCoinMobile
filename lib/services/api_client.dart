@@ -51,6 +51,16 @@ class ApiClient {
   static String get _baseUrl =>
       _envApiBaseUrl.isNotEmpty ? _envApiBaseUrl : _defaultBaseUrl();
 
+  /// Resolves API-relative paths (e.g. `/uploads/...`) for [Image.network].
+  static String resolveMediaUrl(String pathOrUrl) {
+    final t = pathOrUrl.trim();
+    if (t.isEmpty) return t;
+    if (t.startsWith('http://') || t.startsWith('https://')) return t;
+    final base = _baseUrl.replaceAll(RegExp(r'/$'), '');
+    final p = t.startsWith('/') ? t : '/$t';
+    return '$base$p';
+  }
+
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
   Future<void> login({
@@ -170,6 +180,7 @@ class ApiClient {
     bool isUrgent = false,
     List<String> referenceImages = const [],
     double totalAmount = 0,
+    String? preferredPaymentMethod,
   }) async {
     final response = await _authorizedPost(
       '/commissions',
@@ -184,6 +195,8 @@ class ApiClient {
         'isUrgent': isUrgent,
         'referenceImages': referenceImages,
         'totalAmount': totalAmount,
+        if (preferredPaymentMethod != null && preferredPaymentMethod.isNotEmpty)
+          'preferredPaymentMethod': preferredPaymentMethod,
       },
     );
     final json = _throwIfErrorAndReadJson(response);
@@ -194,10 +207,22 @@ class ApiClient {
     throw ApiException('Unexpected response format.');
   }
 
-  Future<void> updateCommissionStatus(int commissionId, String status) async {
+  Future<void> updateCommissionStatus(
+    int commissionId,
+    String status, {
+    String? paymentMethod,
+    List<Map<String, String>>? submissionImages,
+  }) async {
+    final body = <String, dynamic>{'status': status};
+    if (paymentMethod != null && paymentMethod.isNotEmpty) {
+      body['paymentMethod'] = paymentMethod;
+    }
+    if (submissionImages != null && submissionImages.isNotEmpty) {
+      body['submissionImages'] = submissionImages;
+    }
     final response = await _authorizedPut(
       '/commissions/$commissionId/status',
-      body: {'status': status},
+      body: body,
     );
     _throwIfError(response);
   }
@@ -344,6 +369,26 @@ class ApiClient {
         'isCommissionAvailable': isCommissionAvailable,
         'tags': tags,
         'imageUrl': imageUrl,
+      },
+    );
+    final json = _throwIfErrorAndReadJson(response);
+    final post = json['post'];
+    if (post is Map) {
+      return post.map((k, v) => MapEntry('$k', v));
+    }
+    throw ApiException('Unexpected response format.');
+  }
+
+  Future<Map<String, dynamic>> updatePost({
+    required int postId,
+    required String title,
+    required String description,
+  }) async {
+    final response = await _authorizedPatch(
+      '/posts/$postId',
+      body: {
+        'title': title,
+        'description': description,
       },
     );
     final json = _throwIfErrorAndReadJson(response);

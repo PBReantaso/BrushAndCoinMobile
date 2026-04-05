@@ -18,7 +18,8 @@ class CommissionsScreen extends StatefulWidget {
 
 class _CommissionsScreenState extends State<CommissionsScreen> {
   final _apiClient = ApiClient();
-  _CommissionDirection _direction = _CommissionDirection.received;
+  /// Default to outgoing requests so patrons see what they sent without switching tabs.
+  _CommissionDirection _direction = _CommissionDirection.sent;
   _CommissionStatus _status = _CommissionStatus.all;
   String? _currentUsername;
   late Future<List<Project>> _commissionsFuture;
@@ -57,9 +58,11 @@ class _CommissionsScreenState extends State<CommissionsScreen> {
   List<Project> _applyFilter(List<Project> items) {
     if (_currentUsername == null) return [];
 
+    final me = _currentUsername!.trim().toLowerCase();
     return items.where((project) {
-      // Direction filter
-      final isReceived = project.clientName != _currentUsername;
+      // Direction filter (case-insensitive; matches API client_name vs session username)
+      final client = (project.clientName).trim().toLowerCase();
+      final isReceived = client != me;
       if (_direction == _CommissionDirection.received && !isReceived) return false;
       if (_direction == _CommissionDirection.sent && isReceived) return false;
 
@@ -330,26 +333,29 @@ class _CommissionActionDropdown extends StatelessWidget {
       _CommissionDirection.sent: 'Sent',
     };
 
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: 'Commission action',
-        filled: true,
-        fillColor: const Color(0xFFEDEDF1),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
+    final textStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: Colors.black,
+          fontWeight: FontWeight.w800,
+        );
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
       child: DropdownButtonHideUnderline(
         child: DropdownButton<_CommissionDirection>(
           isExpanded: true,
+          isDense: true,
           value: active,
-          icon: const Icon(Icons.keyboard_arrow_down),
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black87, size: 22),
+          style: textStyle,
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           items: _CommissionDirection.values.map((direction) {
             return DropdownMenuItem(
               value: direction,
-              child: Text(labels[direction]!),
+              child: Text(labels[direction]!, style: textStyle),
             );
           }).toList(),
           onChanged: (value) {
@@ -381,26 +387,29 @@ class _CommissionStatusDropdown extends StatelessWidget {
       _CommissionStatus.rejected: 'Failed',
     };
 
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: 'Status',
-        filled: true,
-        fillColor: const Color(0xFFEDEDF1),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
+    final textStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: Colors.black,
+          fontWeight: FontWeight.w800,
+        );
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
       child: DropdownButtonHideUnderline(
         child: DropdownButton<_CommissionStatus>(
           isExpanded: true,
+          isDense: true,
           value: active,
-          icon: const Icon(Icons.keyboard_arrow_down),
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black87, size: 22),
+          style: textStyle,
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           items: _CommissionStatus.values.map((status) {
             return DropdownMenuItem(
               value: status,
-              child: Text(labels[status]!),
+              child: Text(labels[status]!, style: textStyle),
             );
           }).toList(),
           onChanged: (value) {

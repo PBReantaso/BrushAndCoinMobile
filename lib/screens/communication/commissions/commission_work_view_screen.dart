@@ -28,19 +28,39 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
   int _selectedImageIndex = 0;
   bool _busy = false;
   int? _myUserId;
+  Project? _commissionRefresh;
 
-  List<String> get _imageGallery => widget.commission.referenceImages;
+  Project get _c => _commissionRefresh ?? widget.commission;
 
-  double get _urgencyFee =>
-      widget.commission.isUrgent ? widget.commission.budget * 0.20 : 0;
-  double get _platformFee => widget.commission.budget * 0.05;
-  double get _totalAmount =>
-      widget.commission.budget + _urgencyFee + _platformFee;
+  List<String> get _imageGallery {
+    final sub = _c.submissionImages;
+    if (sub.isNotEmpty) {
+      return sub.map(ApiClient.resolveMediaUrl).toList();
+    }
+    return _c.referenceImages;
+  }
+
+  double get _urgencyFee => _c.isUrgent ? _c.budget * 0.20 : 0;
+  double get _platformFee => _c.budget * 0.05;
+  double get _totalAmount => _c.budget + _urgencyFee + _platformFee;
 
   @override
   void initState() {
     super.initState();
     _loadUserId();
+    _reloadCommission();
+  }
+
+  Future<void> _reloadCommission() async {
+    final id = widget.commission.id;
+    if (id == null) return;
+    try {
+      final json = await _apiClient.fetchCommission(id);
+      if (!mounted) return;
+      setState(() => _commissionRefresh = Project.fromJson(json));
+    } catch (_) {
+      // Keep widget.commission.
+    }
   }
 
   Future<void> _loadUserId() async {
@@ -60,7 +80,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
   }
 
   String? _formatDeadline() {
-    final d = widget.commission.deadline;
+    final d = _c.deadline;
     if (d == null || d.isEmpty) return null;
     final parsed = DateTime.tryParse(d);
     if (parsed != null) {
@@ -70,7 +90,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
   }
 
   Future<void> _accept() async {
-    final id = widget.commission.id;
+    final id = _c.id;
     if (id == null || _busy) return;
     setState(() => _busy = true);
     try {
@@ -79,7 +99,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Commission completed. Escrow will release payment to the artist.',
+            'Commission completed. Escrow is released to the artist.',
           ),
         ),
       );
@@ -95,7 +115,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
   }
 
   Future<void> _reject() async {
-    final id = widget.commission.id;
+    final id = _c.id;
     if (id == null || _busy) return;
     setState(() => _busy = true);
     try {
@@ -182,9 +202,9 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
   @override
   Widget build(BuildContext context) {
     final deadlineLabel = _formatDeadline();
-    final isPatron = _myUserId != null && _myUserId == widget.commission.patronId;
+    final isPatron = _myUserId != null && _myUserId == _c.patronId;
     final showDownload =
-        isPatron && widget.commission.status == ProjectStatus.completed;
+        isPatron && _c.status == ProjectStatus.completed;
 
     return Scaffold(
       appBar: AppBar(
@@ -290,17 +310,17 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                       context,
                       children: [
                         Text(
-                          'Commission No#${widget.commission.id ?? '—'}',
+                          'Commission No#${_c.id ?? '—'}',
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                         ),
                         const SizedBox(height: 10),
-                        _row('Title', widget.commission.title),
-                        _row('Description', widget.commission.description),
+                        _row('Title', _c.title),
+                        _row('Description', _c.description),
                         _row(
                           'Budget',
-                          '₱${widget.commission.budget.toStringAsFixed(2)}',
+                          '₱${_c.budget.toStringAsFixed(2)}',
                           accent: true,
                         ),
                         if (deadlineLabel != null)
@@ -322,15 +342,15 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          widget.commission.specialRequirements.isEmpty
+                          _c.specialRequirements.isEmpty
                               ? '—'
-                              : widget.commission.specialRequirements,
+                              : _c.specialRequirements,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],
                     ),
                   ),
-                  if (widget.commission.referenceImages.isNotEmpty) ...[
+                  if (_c.referenceImages.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -347,10 +367,10 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                       child: ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         scrollDirection: Axis.horizontal,
-                        itemCount: widget.commission.referenceImages.length,
+                        itemCount: _c.referenceImages.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (context, i) {
-                          final path = widget.commission.referenceImages[i];
+                          final path = _c.referenceImages[i];
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: SizedBox(
@@ -372,7 +392,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: widget.commission.isUrgent
+                          color: _c.isUrgent
                               ? const Color(0xFFD32F2F)
                               : Colors.grey.shade300,
                         ),
@@ -380,7 +400,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (widget.commission.isUrgent)
+                          if (_c.isUrgent)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: Text(
@@ -396,7 +416,7 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          _priceRow('Base budget', widget.commission.budget),
+                          _priceRow('Base budget', _c.budget),
                           _priceRow('Urgency Fee (20%)', _urgencyFee),
                           _priceRow('Platform Fee (5%)', _platformFee),
                           const Divider(),
@@ -425,7 +445,22 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
               ),
               child: SafeArea(
                 top: false,
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_imageGallery.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          'No artwork is linked to this submission yet. You can’t release escrow until the artist submits images.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF6E6E6E),
+                              ),
+                        ),
+                      ),
+                    Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
@@ -441,7 +476,9 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _busy ? null : _accept,
+                        onPressed: (_busy || _imageGallery.isEmpty)
+                            ? null
+                            : _accept,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFD32F2F),
                           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -456,11 +493,13 @@ class _CommissionWorkViewScreenState extends State<CommissionWorkViewScreen> {
                                 ),
                               )
                             : const Text(
-                                'Accept',
+                                'Accept work & release payment',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                       ),
                     ),
+                  ],
+                ),
                   ],
                 ),
               ),

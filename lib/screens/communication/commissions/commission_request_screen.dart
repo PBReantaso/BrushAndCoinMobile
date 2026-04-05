@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
-import 'commission_payment_confirmation_screen.dart';
 
 class CommissionRequestScreen extends StatefulWidget {
   final int artistId;
@@ -119,6 +118,7 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
         isUrgent: _isUrgent,
         referenceImages: _referenceImages.map((e) => e.path).toList(),
         totalAmount: _totalAmount,
+        preferredPaymentMethod: _selectedPaymentMethod.name,
       );
 
       final commissionId = (commissionData['id'] as int?) ?? 0;
@@ -133,22 +133,14 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => CommissionPaymentConfirmationScreen(
-            artistUserId: widget.artistId,
-            artistUsername: widget.artistName,
-            commissionId: commissionId,
-            commissionTitle: title,
-            baseBudget: budget,
-            isUrgent: _isUrgent,
-            paymentMethod: _selectedPaymentMethod,
-            urgencyFee: _urgencyFee,
-            platformFee: _platformFee,
-            totalAmount: _totalAmount,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Request sent. You’ll pay after the artist accepts — check Sent in Commissions.',
           ),
         ),
       );
+      Navigator.of(context).pop(true);
     } catch (e) {
       final message =
           e is ApiException ? e.message : 'Failed to send commission request.';
@@ -226,7 +218,7 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                 child: _buildTextField(
                     controller: _deadlineController,
                     label: 'Preferred Deadline (Optional)',
-                    hint: 'dd/mm/yyyy'),
+                    hint: 'Tap to choose a date'),
               ),
             ),
             const SizedBox(height: 12),
@@ -241,6 +233,28 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             _buildReferenceImagePicker(),
+            const SizedBox(height: 20),
+            const Text(
+              'Preferred payment method',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Saved with your request so the artist knows how you plan to pay. '
+              'After they accept, you’ll complete payment from the commission to fund escrow.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF5C5C66),
+                    height: 1.35,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentOption(PaymentMethodType.gcash, 'GCash'),
+            const SizedBox(height: 8),
+            _buildPaymentOption(PaymentMethodType.paymaya, 'PayMaya'),
+            const SizedBox(height: 8),
+            _buildPaymentOption(PaymentMethodType.paypal, 'PayPal'),
+            const SizedBox(height: 8),
+            _buildPaymentOption(PaymentMethodType.stripe, 'Stripe'),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -272,13 +286,6 @@ class _CommissionRequestScreenState extends State<CommissionRequestScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            const Text('Payment Method',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            _buildPaymentOption(PaymentMethodType.gcash, 'Gcash'),
-            const SizedBox(height: 8),
-            _buildPaymentOption(PaymentMethodType.paymaya, 'PayMaya'),
             const SizedBox(height: 16),
             Row(
               children: [

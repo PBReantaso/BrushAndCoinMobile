@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../../widgets/communication/chat_message_content.dart';
+import '../commissions/commission_work_view_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final Conversation conversation;
@@ -77,10 +79,32 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  String _chatPeerDisplayName() {
-    final n = _conversation.name.trim();
-    if (n.isEmpty) return '@…';
-    return n.startsWith('@') ? n : '@$n';
+  Future<void> _openWorkViewFromChat(String stageKey) async {
+    final id = _conversation.commissionId;
+    if (id == null) return;
+    try {
+      final j = await _apiClient.fetchCommission(id);
+      if (!mounted) return;
+      final p = Project.fromJson(j);
+      final patronReview = _currentUserId != null &&
+          p.patronId == _currentUserId &&
+          p.status == ProjectStatus.inProgress;
+      await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CommissionWorkViewScreen(
+            commission: p,
+            workStageKey: stageKey,
+            patronReviewMode: patronReview,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open work: $e')),
+      );
+    }
   }
 
   Widget _buildMessageList() {
@@ -122,6 +146,8 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         });
 
+        final cid = _conversation.commissionId;
+
         return ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -130,7 +156,12 @@ class _ChatScreenState extends State<ChatScreen> {
             final message = messages[index];
             final isMe = message.senderId == _currentUserId;
 
-            return _DmMessageBubble(message: message, isMe: isMe);
+            return ChatMessageContent(
+              message: message,
+              isMe: isMe,
+              commissionId: cid,
+              onViewWorkStage: cid != null ? _openWorkViewFromChat : null,
+            );
           },
         );
       },
@@ -139,37 +170,38 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildComposer() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        border: Border(top: BorderSide(color: Colors.grey.shade300)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SafeArea(
+        top: false,
+        child: TextField(
+          controller: _messageController,
+          minLines: 1,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: 'Type a message…',
+            hintStyle: TextStyle(color: Colors.grey.shade500),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(28),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF2F2F4),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            suffixIcon: IconButton(
+              onPressed: _sendMessage,
+              icon: const Icon(
+                Icons.send_rounded,
+                color: kChatOutgoingRed,
               ),
-              onSubmitted: (_) => _sendMessage(),
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: _sendMessage,
-            icon: const Icon(Icons.send),
-            color: Colors.blue,
-          ),
-        ],
+          onSubmitted: (_) => _sendMessage(),
+        ),
       ),
     );
   }
@@ -177,6 +209,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F6F8),
       appBar: AppBar(
         title: Text(_conversation.name),
         backgroundColor: Colors.white,
@@ -188,35 +221,6 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(child: _buildMessageList()),
           _buildComposer(),
         ],
-      ),
-    );
-  }
-}
-
-class _DmMessageBubble extends StatelessWidget {
-  final Message message;
-  final bool isMe;
-
-  const _DmMessageBubble({required this.message, required this.isMe});
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe ? Colors.blue : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Text(
-          message.content,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: isMe ? Colors.white : Colors.black,
-                fontWeight: FontWeight.w400,
-              ),
-        ),
       ),
     );
   }

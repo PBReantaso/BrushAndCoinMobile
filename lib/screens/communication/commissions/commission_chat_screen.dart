@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
+import '../../../widgets/communication/chat_message_content.dart';
 import 'commission_detail_screen.dart';
 import 'commission_work_view_screen.dart';
 
-/// Brand red for commission chat outgoing bubbles (matches app accents).
-const Color _kCommissionOutgoingRed = Color(0xFFFF4A4A);
-const Color _kCommissionIncomingGrey = Color(0xFFEDEDED);
 const Color _kCommissionSubheaderBg = Color(0xFFEDEDF1);
 
 class CommissionChatScreen extends StatefulWidget {
@@ -117,12 +115,6 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
     final n = _conversation.name.trim();
     if (n.isEmpty) return '@…';
     return n.startsWith('@') ? n : '@$n';
-  }
-
-  String _atHandle(String raw) {
-    final t = raw.trim();
-    if (t.isEmpty) return '@…';
-    return t.startsWith('@') ? t : '@$t';
   }
 
   String _stageKeyFromRound(int r) {
@@ -355,29 +347,11 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
             final message = messages[index];
             final isMe = message.senderId == _currentUserId;
 
-            final accepted = _parseCommissionAccepted(message.content);
-            if (accepted != null) {
-              return _AcceptNoticeBanner(
-                artistHandle: _atHandle(accepted.$1),
-                patronHandle: _atHandle(accepted.$2),
-              );
-            }
-
-            final ws = _parseWorkSubmitted(message.content);
-            if (ws != null) {
-              return _WorkSubmittedBubble(
-                stageKey: ws.$1,
-                artistName: ws.$2,
-                onViewWork: () => _openWorkViewFromChat(ws.$1),
-              );
-            }
-            if (_isCompletionSystemLine(message.content)) {
-              return _SystemMessageBubble(text: message.content);
-            }
-
-            return _CommissionMessageBubble(
+            return ChatMessageContent(
               message: message,
               isMe: isMe,
+              commissionId: widget.commissionId,
+              onViewWorkStage: _openWorkViewFromChat,
             );
           },
         );
@@ -461,193 +435,6 @@ class _CommissionChatScreenState extends State<CommissionChatScreen> {
           Expanded(child: _buildMessageList()),
           if (!_commissionMessagingClosed) _buildComposer(),
         ],
-      ),
-    );
-  }
-}
-
-(String artist, String patron)? _parseCommissionAccepted(String content) {
-  final t = content.trim();
-  if (!t.startsWith('COMMISSION_ACCEPTED|')) return null;
-  final parts = t.split('|');
-  if (parts.length < 3) return null;
-  return (parts[1], parts.sublist(2).join('|'));
-}
-
-(String stageKey, String artistName)? _parseWorkSubmitted(String content) {
-  final t = content.trim();
-  if (!t.startsWith('WORK_SUBMITTED|')) return null;
-  final parts = t.split('|');
-  if (parts.length < 3) return null;
-  return (parts[1], parts.sublist(2).join('|'));
-}
-
-bool _isCompletionSystemLine(String content) {
-  final t = content.trim();
-  return t.startsWith('Commission No#') && t.toLowerCase().contains('completed');
-}
-
-class _AcceptNoticeBanner extends StatelessWidget {
-  final String artistHandle;
-  final String patronHandle;
-
-  const _AcceptNoticeBanner({
-    required this.artistHandle,
-    required this.patronHandle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFE8E8EA)),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          '$artistHandle have accepted $patronHandle\'s request.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF333333),
-                fontWeight: FontWeight.w500,
-                height: 1.35,
-              ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkSubmittedBubble extends StatelessWidget {
-  final String stageKey;
-  final String artistName;
-  final VoidCallback onViewWork;
-
-  const _WorkSubmittedBubble({
-    required this.stageKey,
-    required this.artistName,
-    required this.onViewWork,
-  });
-
-  static String _stageLabel(String key) {
-    switch (key) {
-      case 'second':
-        return 'Second work';
-      case 'last':
-        return 'Last work';
-      default:
-        return 'First work';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final handle = artistName.startsWith('@') ? artistName : '@$artistName';
-    final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: const Color(0xFF555555),
-          fontWeight: FontWeight.w500,
-          height: 1.35,
-        );
-    final linkStyle = baseStyle?.copyWith(
-      color: const Color(0xFFD32F2F),
-      fontWeight: FontWeight.w800,
-      decoration: TextDecoration.underline,
-    );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Center(
-        child: Column(
-          children: [
-            Row(children: [Expanded(child: Divider(color: Colors.grey.shade300))]),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    '$handle have submitted ${_stageLabel(stageKey)}. ',
-                    textAlign: TextAlign.center,
-                    style: baseStyle,
-                  ),
-                  GestureDetector(
-                    onTap: onViewWork,
-                    child: Text('View Work', style: linkStyle),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SystemMessageBubble extends StatelessWidget {
-  final String text;
-
-  const _SystemMessageBubble({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0F0F2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF444444),
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CommissionMessageBubble extends StatelessWidget {
-  final Message message;
-  final bool isMe;
-
-  const _CommissionMessageBubble({
-    required this.message,
-    required this.isMe,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe ? _kCommissionOutgoingRed : _kCommissionIncomingGrey,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          message.content,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: isMe ? Colors.white : const Color(0xFF111111),
-                fontWeight: FontWeight.w400,
-              ),
-        ),
       ),
     );
   }

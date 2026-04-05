@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
+import '../../widgets/home/edit_post_bottom_sheet.dart';
 import '../../widgets/home/feed_post_card.dart';
 
 class TaggedPostsScreen extends StatefulWidget {
@@ -17,13 +18,20 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
   bool _loading = true;
   String? _error;
   List<_TaggedPost> _posts = const [];
+  int? _currentUserId;
 
   String get _tag => widget.initialTag.trim().replaceFirst(RegExp(r'^#'), '');
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserId();
     _load();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final id = await _api.getCurrentUserId();
+    if (mounted) setState(() => _currentUserId = id);
   }
 
   Future<void> _load() async {
@@ -42,6 +50,32 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
       setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _editPost(_TaggedPost post) async {
+    final result = await showEditPostBottomSheet(
+      context,
+      initialTitle: post.title,
+      initialDescription: post.description,
+    );
+    if (result == null || !mounted) return;
+    try {
+      final updated = await _api.updatePost(
+        postId: post.id,
+        title: result.title,
+        description: result.description,
+      );
+      if (!mounted) return;
+      final merged = _TaggedPost.fromJson(updated);
+      setState(() {
+        _posts = _posts
+            .map((p) => p.id == post.id ? merged : p)
+            .toList(growable: false);
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -73,6 +107,8 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final p = _posts[index];
+                        final isOwner =
+                            _currentUserId != null && _currentUserId == p.userId;
                         return FeedPostCard(
                           postId: p.id,
                           authorUserId: p.userId,
@@ -97,6 +133,8 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
                               ),
                             );
                           },
+                          isOwner: isOwner,
+                          onEditPost: isOwner ? () => _editPost(p) : null,
                         );
                       },
                     ),

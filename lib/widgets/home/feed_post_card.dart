@@ -25,6 +25,9 @@ class FeedPostCard extends StatelessWidget {
   final VoidCallback onLikeTap;
   final VoidCallback onCommentTap;
   final ValueChanged<String>? onTagTap;
+  /// When true and [onEditPost] is set, the header menu includes Edit.
+  final bool isOwner;
+  final VoidCallback? onEditPost;
 
   const FeedPostCard({
     super.key,
@@ -44,6 +47,8 @@ class FeedPostCard extends StatelessWidget {
     required this.onLikeTap,
     required this.onCommentTap,
     this.onTagTap,
+    this.isOwner = false,
+    this.onEditPost,
   });
 
   @override
@@ -98,11 +103,22 @@ class FeedPostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () {},
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF3A3A3F)),
-                ),
+                if (isOwner && onEditPost != null)
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF3A3A3F)),
+                    onSelected: (value) {
+                      if (value == 'edit') onEditPost!();
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Text('Edit post'),
+                      ),
+                    ],
+                  )
+                else
+                  const SizedBox(width: 40, height: 40),
               ],
             ),
           ),

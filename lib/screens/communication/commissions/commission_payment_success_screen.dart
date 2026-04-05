@@ -81,7 +81,9 @@ class CommissionPaymentSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your payment was successful.\nThe receipt for the commission has been sent to your email.',
+                'Your payment is recorded as held in simulated escrow until the commission is completed. '
+                'Then it is marked as released to the artist (no real funds move until you connect a payment provider).\n\n'
+                'Email receipts appear when your account is set up for notifications.',
                 textAlign: TextAlign.center,
                 style: t.bodyLarge?.copyWith(
                   height: 1.4,

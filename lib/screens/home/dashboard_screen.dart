@@ -6,6 +6,7 @@ import '../search/tagged_posts_screen.dart';
 import '../../theme/content_spacing.dart';
 import '../../state/app_profile_scope.dart';
 import '../../widgets/common/bc_app_bar.dart';
+import '../../widgets/home/edit_post_bottom_sheet.dart';
 import '../../widgets/home/feed_post_card.dart';
 import '../../widgets/profile/profile_avatar.dart';
 
@@ -21,11 +22,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<_FeedPost> _posts = const [];
+  int? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserId();
     _refreshFeed();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final id = await _apiClient.getCurrentUserId();
+    if (mounted) setState(() => _currentUserId = id);
   }
 
   Future<void> _refreshFeed({bool showFullScreenLoading = true}) async {
@@ -120,6 +128,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final p = _posts[index];
+                          final isOwner =
+                              _currentUserId != null && _currentUserId == p.userId;
                           return FeedPostCard(
                             postId: p.id,
                             authorUserId: p.userId,
@@ -137,6 +147,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             onLikeTap: () => _toggleLike(p),
                             onCommentTap: () => _commentOnPost(p),
                             onTagTap: (tag) => _openTag(tag),
+                            isOwner: isOwner,
+                            onEditPost: isOwner ? () => _editPost(p) : null,
                           );
                         },
                       ),
@@ -203,6 +215,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .map((p) => p.id == postId ? mapper(p) : p)
           .toList(growable: false);
     });
+  }
+
+  Future<void> _editPost(_FeedPost post) async {
+    final result = await showEditPostBottomSheet(
+      context,
+      initialTitle: post.title,
+      initialDescription: post.description,
+    );
+    if (result == null || !mounted) return;
+    try {
+      final updated = await _apiClient.updatePost(
+        postId: post.id,
+        title: result.title,
+        description: result.description,
+      );
+      if (!mounted) return;
+      final merged = _FeedPost.fromJson(updated);
+      _updatePost(post.id, (_) => merged);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _openTag(String tag) {

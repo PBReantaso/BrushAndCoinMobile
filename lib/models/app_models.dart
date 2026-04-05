@@ -8,6 +8,56 @@ enum ProjectStatus {
   rejected,
 }
 
+/// Server-tracked escrow for commission payments (integrate PSP for real money movement).
+enum EscrowStatus {
+  none,
+  funded,
+  released,
+  refunded,
+}
+
+/// Simulated platform wallet — API tracks amounts until completion (no real funds until PSP).
+class EscrowSimulation {
+  final String mode;
+  final String currency;
+  final String phase;
+  final double commissionTotal;
+  final double heldInEscrow;
+  final double releasedToArtist;
+  final double refundedToPatron;
+  final String releaseGoal;
+  final String refundNote;
+  final String disclaimer;
+
+  const EscrowSimulation({
+    this.mode = 'simulated',
+    this.currency = 'PHP',
+    required this.phase,
+    this.commissionTotal = 0,
+    this.heldInEscrow = 0,
+    this.releasedToArtist = 0,
+    this.refundedToPatron = 0,
+    this.releaseGoal = '',
+    this.refundNote = '',
+    this.disclaimer = '',
+  });
+
+  factory EscrowSimulation.fromJson(Map<String, dynamic> json) {
+    return EscrowSimulation(
+      mode: (json['mode'] as String?) ?? 'simulated',
+      currency: (json['currency'] as String?) ?? 'PHP',
+      phase: (json['phase'] as String?) ?? 'awaiting_funding',
+      commissionTotal: _readDouble(json['commissionTotal']),
+      heldInEscrow: _readDouble(json['heldInEscrow']),
+      releasedToArtist: _readDouble(json['releasedToArtist']),
+      refundedToPatron: _readDouble(json['refundedToPatron']),
+      releaseGoal: (json['releaseGoal'] as String?) ?? '',
+      refundNote: (json['refundNote'] as String?) ?? '',
+      disclaimer: (json['disclaimer'] as String?) ?? '',
+    );
+  }
+}
+
 class Artist {
   final String name;
   final String location;
@@ -46,12 +96,21 @@ class Project {
   final String specialRequirements;
   final bool isUrgent;
   final List<String> referenceImages;
+  /// Server paths or URLs for artwork the artist submitted for review (see API `submissionImages`).
+  final List<String> submissionImages;
   final double totalAmount;
   final DateTime? createdAt;
   final DateTime? lastMessageAt;
   final DateTime? completedAt;
   /// Increments each time the artist moves accepted → in progress (submission round).
   final int submissionRound;
+  final String? paymentMethod;
+  final EscrowStatus escrowStatus;
+  final DateTime? escrowFundedAt;
+  final DateTime? escrowReleasedAt;
+  /// Patron's choice when submitting the request (before actual payment / escrow fund).
+  final String? preferredPaymentMethod;
+  final EscrowSimulation? escrowSimulation;
 
   Project({
     this.id,
@@ -70,11 +129,18 @@ class Project {
     this.specialRequirements = '',
     this.isUrgent = false,
     this.referenceImages = const [],
+    this.submissionImages = const [],
     this.totalAmount = 0,
     this.createdAt,
     this.lastMessageAt,
     this.completedAt,
     this.submissionRound = 0,
+    this.paymentMethod,
+    this.escrowStatus = EscrowStatus.none,
+    this.escrowFundedAt,
+    this.escrowReleasedAt,
+    this.preferredPaymentMethod,
+    this.escrowSimulation,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -111,12 +177,40 @@ class Project {
       referenceImages: json['referenceImages'] is List
           ? (json['referenceImages'] as List).whereType<String>().toList()
           : const [],
+      submissionImages: json['submissionImages'] is List
+          ? (json['submissionImages'] as List).whereType<String>().toList()
+          : const [],
       totalAmount: _readDouble(json['totalAmount']),
       createdAt: _readDateTime(json['createdAt']),
       lastMessageAt: _readDateTime(json['lastMessageAt']),
       completedAt: _readDateTime(json['completedAt']),
       submissionRound: (json['submissionRound'] as num?)?.toInt() ?? 0,
+      paymentMethod: _optionalTrimmedString(json['paymentMethod']),
+      escrowStatus: _escrowStatusFromString(json['escrowStatus'] as String?),
+      escrowFundedAt: _readDateTime(json['escrowFundedAt']),
+      escrowReleasedAt: _readDateTime(json['escrowReleasedAt']),
+      preferredPaymentMethod: _optionalTrimmedString(json['preferredPaymentMethod']),
+      escrowSimulation: json['escrowSimulation'] is Map<String, dynamic>
+          ? EscrowSimulation.fromJson(json['escrowSimulation'] as Map<String, dynamic>)
+          : json['escrowSimulation'] is Map
+              ? EscrowSimulation.fromJson(
+                  (json['escrowSimulation'] as Map).map((k, v) => MapEntry('$k', v)),
+                )
+              : null,
     );
+  }
+}
+
+EscrowStatus _escrowStatusFromString(String? raw) {
+  switch (raw) {
+    case 'funded':
+      return EscrowStatus.funded;
+    case 'released':
+      return EscrowStatus.released;
+    case 'refunded':
+      return EscrowStatus.refunded;
+    default:
+      return EscrowStatus.none;
   }
 }
 
@@ -244,6 +338,21 @@ class Review {
 }
 
 enum PaymentMethodType { gcash, paymaya, paypal, stripe }
+
+/// Maps API-stored names (create request / commission) to [PaymentMethodType].
+PaymentMethodType paymentMethodTypeFromStoredName(String? raw) {
+  switch ((raw ?? '').trim().toLowerCase()) {
+    case 'paymaya':
+      return PaymentMethodType.paymaya;
+    case 'paypal':
+      return PaymentMethodType.paypal;
+    case 'stripe':
+      return PaymentMethodType.stripe;
+    case 'gcash':
+    default:
+      return PaymentMethodType.gcash;
+  }
+}
 
 class PaymentMethod {
   final PaymentMethodType type;
