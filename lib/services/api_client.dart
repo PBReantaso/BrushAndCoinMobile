@@ -478,29 +478,50 @@ class ApiClient {
       body: {'status': s},
     );
     final json = _throwIfErrorAndReadJson(response);
-    return _readList(json['reports']);
+    final list = _readList(json['reports']);
+    return list.map(_normalizeAdminReportRow).toList();
+  }
+
+  /// Ensures nested [targetPost] is a proper map (JSON decode can use key types the UI mishandles).
+  Map<String, dynamic> _normalizeAdminReportRow(Map<String, dynamic> row) {
+    final m = Map<String, dynamic>.from(row);
+    final tp = m['targetPost'] ?? m['target_post'];
+    if (tp is Map) {
+      m['targetPost'] = Map<String, dynamic>.from(tp);
+    } else {
+      m['targetPost'] = null;
+    }
+    m.remove('target_post');
+    return m;
   }
 
   Future<Map<String, dynamic>> resolveAdminReport({
     required int reportId,
     required String status,
     String? resolutionNote,
+    bool? deleteReportedPost,
+    bool? sendWarning,
+    int? banDays,
   }) async {
     final body = <String, dynamic>{
       'status': status,
       if (resolutionNote != null && resolutionNote.trim().isNotEmpty)
         'resolutionNote': resolutionNote.trim(),
+      if (status == 'resolved') ...<String, dynamic>{
+        if (deleteReportedPost == true) 'deleteReportedPost': true,
+        if (sendWarning == true) 'sendWarning': true,
+        if (banDays != null && banDays > 0) 'banDays': banDays,
+      },
     };
     final response = await _authorizedPatch(
       '/admin/reports/$reportId',
       body: body,
     );
     final json = _throwIfErrorAndReadJson(response);
-    final r = json['report'];
-    if (r is Map) {
-      return r.map((k, v) => MapEntry('$k', v));
+    if (json['report'] is! Map) {
+      throw ApiException('Unexpected response format.');
     }
-    throw ApiException('Unexpected response format.');
+    return json.map((k, v) => MapEntry(k, v));
   }
 
   Future<void> likePost(int postId) async {
@@ -973,8 +994,8 @@ class ApiClient {
   Map<String, dynamic> _throwIfErrorAndReadJson(http.Response response) {
     _throwIfError(response);
     final decoded = jsonDecode(response.body);
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
+    if (decoded is Map) {
+      return Map<String, dynamic>.from(decoded);
     }
     throw ApiException('Unexpected response format.');
   }

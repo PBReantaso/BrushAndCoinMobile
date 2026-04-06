@@ -49,13 +49,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final me = await _apiClient.fetchMe();
       final u = me['user'];
       if (!mounted || u is! Map) return;
+      final admin = u['isAdmin'] == true;
       final p = u['isPrivate'];
-      if (p is bool) {
-        setState(() => _privateAccount = p);
-      }
-      final admin = u['isAdmin'];
       if (mounted) {
-        setState(() => _isAdmin = admin == true);
+        setState(() {
+          _isAdmin = admin;
+          if (p is bool) {
+            _privateAccount = admin ? true : p;
+          } else if (admin) {
+            _privateAccount = true;
+          }
+        });
       }
     } catch (_) {}
   }
@@ -127,10 +131,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.lock_person_outlined,
                   iconColor: accent,
                   title: 'Private account',
-                  subtitle:
-                      'Only followers can see your posts, DM you, or request commissions',
-                  value: _privateAccount,
-                  onChanged: _privateSaving
+                  subtitle: _isAdmin
+                      ? 'Moderation accounts stay private. Followers-only visibility always applies.'
+                      : 'Only followers can see your posts, DM you, or request commissions',
+                  value: _isAdmin ? true : _privateAccount,
+                  onChanged: (_privateSaving || _isAdmin)
                       ? null
                       : (v) async {
                           setState(() {
