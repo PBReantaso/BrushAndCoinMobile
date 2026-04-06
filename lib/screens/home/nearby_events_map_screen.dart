@@ -9,7 +9,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../models/calendar_event.dart';
 import '../../theme/content_spacing.dart';
 
-/// Full-screen map: user location, search radius (1–100 km, default 10 km), and nearby pinned events.
+/// Full-screen map: user location, search radius (1–100 km, default 10 km), and nearby pinned events
+/// scheduled for **today** (device local calendar date) only.
 class NearbyEventsMapScreen extends StatefulWidget {
   const NearbyEventsMapScreen({
     super.key,
@@ -79,8 +80,19 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
     }
   }
 
-  List<CalendarEvent> get _pinnedEvents =>
-      widget.events.where((e) => e.latitude != null && e.longitude != null).toList();
+  static bool _sameLocalCalendarDay(DateTime a, DateTime b) {
+    final la = a.toLocal();
+    final lb = b.toLocal();
+    return la.year == lb.year && la.month == lb.month && la.day == lb.day;
+  }
+
+  /// Only events occurring on the current local calendar day appear on the map.
+  List<CalendarEvent> get _pinnedEvents => widget.events
+      .where((e) =>
+          _sameLocalCalendarDay(e.eventDate, DateTime.now()) &&
+          e.latitude != null &&
+          e.longitude != null)
+      .toList();
 
   List<_NearbyEntry> _nearbySorted() {
     final center = _userPoint;
@@ -177,7 +189,7 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Events with a map pin inside this distance will show on the map and in the list below.',
+                      'Only events scheduled for today (your device date) with a map pin inside this distance appear on the map and in the list below.',
                       style: t.bodySmall?.copyWith(
                         color: const Color(0xFF6A6A70),
                         height: 1.35,
@@ -403,8 +415,8 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
                           ),
                           child: Text(
                             nearby.isEmpty
-                                ? 'Events in radius'
-                                : '${nearby.length} event${nearby.length == 1 ? '' : 's'} within ${_radiusKm.round()} km',
+                                ? "Today's events in radius"
+                                : '${nearby.length} event${nearby.length == 1 ? '' : 's'} today within ${_radiusKm.round()} km',
                             style: t.titleSmall?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: const Color(0xFF1A1A1E),
@@ -420,8 +432,8 @@ class _NearbyEventsMapScreenState extends State<NearbyEventsMapScreen> {
                             16,
                           ),
                           child: Text(
-                            'No events with a map location inside your search radius. '
-                            'Widen the radius, or add an event with a pinned location on the map.',
+                            'No events scheduled for today with a map location inside your search radius. '
+                            'Widen the radius, or add an event for today with a pinned location on the map.',
                             style: t.bodySmall?.copyWith(
                               color: const Color(0xFF6A6A70),
                               height: 1.35,

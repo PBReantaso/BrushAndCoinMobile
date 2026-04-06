@@ -15,6 +15,7 @@ import '../communication/commissions/commission_request_screen.dart';
 import '../communication/messages/chat_screen.dart';
 import '../profile/profile_merch_viewer_screen.dart';
 import '../profile/profile_post_viewer_screen.dart';
+import '../../widgets/common/report_reason_dialog.dart';
 import '../../widgets/profile/profile_merch_tile.dart';
 
 class OtherUserProfileScreen extends StatefulWidget {
@@ -259,6 +260,29 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
     );
   }
 
+  Future<void> _reportUserProfile() async {
+    final reason = await showReportReasonDialog(
+      context,
+      title: 'Report this account?',
+    );
+    if (!mounted || reason == null) return;
+    try {
+      final json = await _api.reportUser(userId: widget.userId, reason: reason);
+      if (!mounted) return;
+      final dup = json['alreadyReported'] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            dup ? 'You already reported this account.' : 'Thanks — we\'ll review your report.',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   bool get _isSelf => _myUserId != null && _myUserId == widget.userId;
 
   ButtonStyle get _outlinedActionStyle => OutlinedButton.styleFrom(
@@ -420,6 +444,22 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
                 widget.usernameHint,
                 style: bcPushedScreenTitleStyle(context),
               ),
+        actions: [
+          if (!_busy && _data != null && !_isSelf && _myUserId != null)
+            PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_vert, color: BcColors.ink),
+              onSelected: (value) {
+                if (value == 'report') unawaited(_reportUserProfile());
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<String>(
+                  value: 'report',
+                  child: Text('Report'),
+                ),
+              ],
+            ),
+        ],
         bottom: const BcAppBarBottomLine(),
       ),
       body: _buildBody(),

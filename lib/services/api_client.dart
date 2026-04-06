@@ -29,6 +29,7 @@ class ApiClient {
   static String? _refreshToken;
   static int? _currentUserId;
   static String? _currentUsername;
+  static bool? _currentUserIsAdmin;
 
   /// Override with `--dart-define=API_BASE_URL=http://YOUR_PC_IP:4000` (required on a physical device).
   static const String _envApiBaseUrl = String.fromEnvironment('API_BASE_URL');
@@ -91,11 +92,15 @@ class ApiClient {
     await _setSessionFromJson(json, rememberMe: rememberMe);
   }
 
+  /// True when `/auth/me` (or login) reported `user.isAdmin` — report-queue access.
+  bool get isCurrentUserAdmin => _currentUserIsAdmin == true;
+
   Future<void> logout() async {
     _accessToken = null;
     _refreshToken = null;
     _currentUserId = null;
     _currentUsername = null;
+    _currentUserIsAdmin = null;
     await _tokenStorage.clear();
   }
 
@@ -430,6 +435,70 @@ class ApiClient {
     final post = json['post'];
     if (post is Map) {
       return post.map((k, v) => MapEntry('$k', v));
+    }
+    throw ApiException('Unexpected response format.');
+  }
+
+  Future<void> deletePost(int postId) async {
+    final response = await _authorizedDelete('/posts/$postId');
+    _throwIfError(response);
+  }
+
+  /// Submits a report for another user's post. Returns API payload including `alreadyReported`.
+  Future<Map<String, dynamic>> reportPost({
+    required int postId,
+    String? reason,
+  }) async {
+    final body = <String, dynamic>{
+      'postId': postId,
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    };
+    final response = await _authorizedPost('/reports/post', body: body);
+    return _throwIfErrorAndReadJson(response);
+  }
+
+  /// Submits a report for another user's account. Returns API payload including `alreadyReported`.
+  Future<Map<String, dynamic>> reportUser({
+    required int userId,
+    String? reason,
+  }) async {
+    final body = <String, dynamic>{
+      'userId': userId,
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    };
+    final response = await _authorizedPost('/reports/user', body: body);
+    return _throwIfErrorAndReadJson(response);
+  }
+
+  /// Report queue — requires an admin account (`user.isAdmin` on the server).
+  Future<List<Map<String, dynamic>>> fetchAdminReports({String status = 'all'}) async {
+    final s = status.trim().isEmpty ? 'all' : status.trim();
+    final response = await _authorizedPost(
+      '/admin/reports/query',
+      body: {'status': s},
+    );
+    final json = _throwIfErrorAndReadJson(response);
+    return _readList(json['reports']);
+  }
+
+  Future<Map<String, dynamic>> resolveAdminReport({
+    required int reportId,
+    required String status,
+    String? resolutionNote,
+  }) async {
+    final body = <String, dynamic>{
+      'status': status,
+      if (resolutionNote != null && resolutionNote.trim().isNotEmpty)
+        'resolutionNote': resolutionNote.trim(),
+    };
+    final response = await _authorizedPatch(
+      '/admin/reports/$reportId',
+      body: body,
+    );
+    final json = _throwIfErrorAndReadJson(response);
+    final r = json['report'];
+    if (r is Map) {
+      return r.map((k, v) => MapEntry('$k', v));
     }
     throw ApiException('Unexpected response format.');
   }
@@ -890,6 +959,8 @@ class ApiClient {
       if (u is String && u.trim().isNotEmpty) {
         _currentUsername = u.trim();
       }
+      final admin = user['isAdmin'];
+      _currentUserIsAdmin = admin == true;
     }
     // Always persist current session tokens so new ApiClient instances
     // (different screens) can still access protected endpoints.
@@ -948,5 +1019,7 @@ class ApiClient {
     if (u is String && u.trim().isNotEmpty) {
       _currentUsername = u.trim();
     }
+    final admin = user['isAdmin'];
+    _currentUserIsAdmin = admin == true;
   }
 }

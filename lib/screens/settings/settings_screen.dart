@@ -5,6 +5,8 @@ import '../../theme/app_colors.dart';
 import '../../theme/content_spacing.dart';
 import '../../state/notification_preferences.dart';
 import '../notifications/notifications_screen.dart';
+import 'admin_reports_screen.dart';
+import 'community_guidelines_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -31,6 +33,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoggingOut = false;
   bool _isDeletingAccount = false;
 
+  bool _isAdmin = false;
+
   final ApiClient _apiClient = ApiClient();
 
   @override
@@ -48,6 +52,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final p = u['isPrivate'];
       if (p is bool) {
         setState(() => _privateAccount = p);
+      }
+      final admin = u['isAdmin'];
+      if (mounted) {
+        setState(() => _isAdmin = admin == true);
       }
     } catch (_) {}
   }
@@ -73,6 +81,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   bool get _notifEnabled => _notifMaster;
+
+  bool get _showAdminModeration => _isAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -390,6 +400,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: '',
                   onTap: () => _showTermsOfService(context),
                 ),
+                _ChevronRow(
+                  icon: Icons.groups_outlined,
+                  iconColor: accent,
+                  title: 'Community guidelines',
+                  subtitle: 'Respect, safety, and how reports are handled',
+                  onTap: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CommunityGuidelinesScreen(),
+                      ),
+                    );
+                  },
+                ),
+                if (_showAdminModeration)
+                  _ChevronRow(
+                    icon: Icons.admin_panel_settings_outlined,
+                    iconColor: accent,
+                    title: 'Report queue',
+                    subtitle: 'Moderation (admin account)',
+                    onTap: () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const AdminReportsScreen(),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: 18),

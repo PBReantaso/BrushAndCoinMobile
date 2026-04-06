@@ -24,9 +24,12 @@ class FeedPostCard extends StatelessWidget {
   final VoidCallback onLikeTap;
   final VoidCallback onCommentTap;
   final ValueChanged<String>? onTagTap;
-  /// When true and [onEditPost] is set, the header menu includes Edit.
+  /// When true and [onEditPost] / [onDeletePost] are set, the header menu includes those actions.
   final bool isOwner;
   final VoidCallback? onEditPost;
+  final VoidCallback? onDeletePost;
+  /// Shown for other users' posts (not your own); overflow "Report".
+  final VoidCallback? onReportPost;
   /// Shown when the post was saved after an edit (API `editedAt`).
   final bool isEdited;
   /// When false, hides like/comment/bookmark row (e.g. merchandise-only view).
@@ -54,6 +57,8 @@ class FeedPostCard extends StatelessWidget {
     this.onTagTap,
     this.isOwner = false,
     this.onEditPost,
+    this.onDeletePost,
+    this.onReportPost,
     this.isEdited = false,
     this.showEngagement = true,
     this.descriptionMaxLines = 2,
@@ -117,17 +122,38 @@ class FeedPostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (isOwner && onEditPost != null)
+                if (isOwner && (onEditPost != null || onDeletePost != null))
                   PopupMenuButton<String>(
                     padding: EdgeInsets.zero,
                     icon: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF3A3A3F)),
                     onSelected: (value) {
-                      if (value == 'edit') onEditPost!();
+                      if (value == 'edit') onEditPost?.call();
+                      if (value == 'delete') onDeletePost?.call();
+                    },
+                    itemBuilder: (context) => [
+                      if (onEditPost != null)
+                        const PopupMenuItem<String>(
+                          value: 'edit',
+                          child: Text('Edit post'),
+                        ),
+                      if (onDeletePost != null)
+                        const PopupMenuItem<String>(
+                          value: 'delete',
+                          child: Text('Delete post', style: TextStyle(color: Color(0xFFC62828))),
+                        ),
+                    ],
+                  )
+                else if (!isOwner && onReportPost != null)
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF3A3A3F)),
+                    onSelected: (value) {
+                      if (value == 'report') onReportPost?.call();
                     },
                     itemBuilder: (context) => const [
                       PopupMenuItem<String>(
-                        value: 'edit',
-                        child: Text('Edit post'),
+                        value: 'report',
+                        child: Text('Report'),
                       ),
                     ],
                   )

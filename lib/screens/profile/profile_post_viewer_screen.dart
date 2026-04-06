@@ -4,6 +4,7 @@ import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/content_spacing.dart';
 import '../search/tagged_posts_screen.dart';
+import '../../widgets/common/report_reason_dialog.dart';
 import '../../widgets/home/edit_post_bottom_sheet.dart';
 import '../../widgets/home/feed_post_card.dart';
 import '../../widgets/home/post_comments_sheet.dart';
@@ -168,6 +169,67 @@ class _ProfilePostViewerScreenState extends State<ProfilePostViewerScreen> {
     }
   }
 
+  Future<void> _reportPost(Map<String, dynamic> post) async {
+    final reason = await showReportReasonDialog(
+      context,
+      title: 'Report this post?',
+    );
+    if (!mounted || reason == null) return;
+    final postId = _readInt(post['id']);
+    try {
+      final json = await _api.reportPost(postId: postId, reason: reason);
+      if (!mounted) return;
+      final dup = json['alreadyReported'] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            dup ? 'You already reported this post.' : 'Thanks — we\'ll review your report.',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _deletePost(Map<String, dynamic> post) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFC62828)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final postId = _readInt(post['id']);
+    try {
+      await _api.deletePost(postId);
+      if (!mounted) return;
+      setState(() {
+        _posts = _posts.where((p) => _readInt(p['id']) != postId).toList();
+        _itemKeys = List.generate(_posts.length, (_) => GlobalKey());
+      });
+      if (_posts.isEmpty && mounted) {
+        Navigator.of(context).pop();
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Widget _buildCard(Map<String, dynamic> json) {
     final postId = _readInt(json['id']);
     final userId = _readInt(json['userId']);
@@ -209,6 +271,8 @@ class _ProfilePostViewerScreenState extends State<ProfilePostViewerScreen> {
       onTagTap: _openTag,
       isOwner: isOwner,
       onEditPost: isOwner ? () => _editPost(json) : null,
+      onDeletePost: isOwner ? () => _deletePost(json) : null,
+      onReportPost: (!isOwner && uid != null) ? () => _reportPost(json) : null,
       isEdited: isEdited,
     );
   }

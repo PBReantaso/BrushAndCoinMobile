@@ -9,6 +9,7 @@ import '../../../models/app_models.dart';
 import '../../../services/api_client.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/content_spacing.dart';
+import '../../../state/inbox_badge_scope.dart';
 import 'commission_chat_screen.dart';
 import 'commission_payment_confirmation_screen.dart';
 import 'commission_work_view_screen.dart';
@@ -112,6 +113,8 @@ class _CommissionDetailScreenState extends State<CommissionDetailScreen> {
   Future<void> _markViewed(int commissionId) async {
     try {
       await _apiClient.markCommissionViewed(commissionId);
+      if (!mounted) return;
+      InboxBadgeScope.maybeOf(context)?.refresh();
     } catch (_) {
       // List still shows unread until next successful sync; avoid blocking UI.
     }

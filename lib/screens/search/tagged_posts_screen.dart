@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/content_spacing.dart';
+import '../../widgets/common/report_reason_dialog.dart';
 import '../../widgets/home/edit_post_bottom_sheet.dart';
 import '../../widgets/home/feed_post_card.dart';
 
@@ -81,6 +82,61 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
     }
   }
 
+  Future<void> _reportPost(_TaggedPost post) async {
+    final reason = await showReportReasonDialog(
+      context,
+      title: 'Report this post?',
+    );
+    if (!mounted || reason == null) return;
+    try {
+      final json = await _api.reportPost(postId: post.id, reason: reason);
+      if (!mounted) return;
+      final dup = json['alreadyReported'] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            dup ? 'You already reported this post.' : 'Thanks — we\'ll review your report.',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _deletePost(_TaggedPost post) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFC62828)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await _api.deletePost(post.id);
+      if (!mounted) return;
+      setState(() {
+        _posts = _posts.where((p) => p.id != post.id).toList(growable: false);
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,6 +200,10 @@ class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
                           },
                           isOwner: isOwner,
                           onEditPost: isOwner ? () => _editPost(p) : null,
+                          onDeletePost: isOwner ? () => _deletePost(p) : null,
+                          onReportPost: (!isOwner && _currentUserId != null)
+                              ? () => _reportPost(p)
+                              : null,
                           isEdited: p.isEditedPost,
                         );
                       },
